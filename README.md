@@ -401,6 +401,14 @@ MIT License — see LICENSE file for details.
   <em>VIBENetBackup Web Interface - Dashboard with backup statistics, device overview, and quick actions</em>
 </p>
 
+## Sponsor
+
+If you find VIBENetBackup useful, consider supporting its development:
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/kulunkilabs)
+
+Your support helps cover server costs and development time.
+
 ## Links
 
 - **Repository:** https://github.com/kulunkilabs/vibenetbackup
