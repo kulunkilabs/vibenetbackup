@@ -1,0 +1,11 @@
+services:
+  vibenetbackup:
+    build: .
+    ports:
+      - "5005:5005"
+    volumes:
+      - ./backups:/app/backups
+      - ./vibenetbackup.db:/app/vibenetbackup.db
+    env_file:
+      - .env
+    restart: unless-stopped

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Devices - VIBENetBackup{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-router"></i> Devices</h2>
+    <div>
+        <a href="/devices/import/oxidized" class="btn btn-info"><i class="bi bi-cloud-download"></i> Import from Oxidized</a>
+        <a href="/devices/test-all" class="btn btn-warning"><i class="bi bi-plug"></i> Test All</a>
+        <a href="/devices/add" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Device</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Hostname</th>
+                    <th>IP Address</th>
+                    <th>Type</th>
+                    <th>Engine</th>
+                    <th>Group</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for device in devices %}
+                <tr>
+                    <td><a href="/devices/{{ device.id }}">{{ device.hostname }}</a></td>
+                    <td><code>{{ device.ip_address }}</code></td>
+                    <td><span class="badge bg-secondary">{{ device_type_labels.get(device.device_type, device.device_type) }}</span></td>
+                    <td>{{ device.backup_engine }}</td>
+                    <td>{{ device.group or '-' }}</td>
+                    <td>
+                        {% if device.enabled %}
+                        <span class="badge bg-success">Enabled</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Disabled</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-info" hx-post="/backups/{{ device.id }}/now" hx-target="#status-{{ device.id }}" hx-swap="innerHTML">
+                                <i class="bi bi-download"></i> Backup
+                            </button>
+                            <button class="btn btn-outline-warning" hx-post="/devices/{{ device.id }}/test" hx-target="#status-{{ device.id }}" hx-swap="innerHTML">
+                                <i class="bi bi-plug"></i> Test
+                            </button>
+                            <a href="/devices/{{ device.id }}/edit" class="btn btn-outline-light"><i class="bi bi-pencil"></i></a>
+                        </div>
+                        <span id="status-{{ device.id }}" class="ms-2"></span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No devices yet. <a href="/devices/add">Add one</a>.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

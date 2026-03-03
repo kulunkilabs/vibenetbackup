@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Job Run #{{ run.id }} - VIBENetBackup{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-journal-text"></i> Job Run #{{ run.id }}: {{ run.job_name }}</h2>
+    <a href="/jobs/history" class="btn btn-outline-secondary">Back to History</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Run Info</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><td class="text-muted">Job Name</td><td>{{ run.job_name }}</td></tr>
+                    <tr><td class="text-muted">Started</td><td>{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') if run.started_at else '-' }}</td></tr>
+                    <tr><td class="text-muted">Completed</td><td>{{ run.completed_at.strftime('%Y-%m-%d %H:%M:%S') if run.completed_at else '-' }}</td></tr>
+                    <tr>
+                        <td class="text-muted">Status</td>
+                        <td>
+                            {% if run.status.value == 'completed' %}
+                            <span class="badge bg-success">Completed</span>
+                            {% elif run.status.value == 'failed' %}
+                            <span class="badge bg-danger">Failed</span>
+                            {% else %}
+                            <span class="badge bg-warning">{{ run.status.value }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr><td class="text-muted">Devices</td><td>{{ run.devices_success }} success / {{ run.devices_failed }} failed / {{ run.devices_total }} total</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if run.error_log %}
+<div class="card mb-4">
+    <div class="card-header text-bg-danger">Error Log</div>
+    <div class="card-body"><pre class="mb-0">{{ run.error_log }}</pre></div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header">Backups from this Job</div>
+    <div class="card-body p-0">
+        <table class="table table-hover table-sm mb-0">
+            <thead>
+                <tr><th>Device</th><th>Status</th><th>Size</th><th>Hash</th></tr>
+            </thead>
+            <tbody>
+                {% for b in backups %}
+                <tr>
+                    <td><a href="/backups/{{ b.id }}">{{ b.device_hostname }}</a></td>
+                    <td>
+                        {% if b.status.value == 'success' %}
+                        <span class="badge bg-success">OK</span>
+                        {% elif b.status.value == 'failed' %}
+                        <span class="badge bg-danger" title="{{ b.error_message or '' }}">Failed</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ b.status.value }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ (b.file_size / 1024)|round(1) if b.file_size else '-' }} KB</td>
+                    <td><code>{{ b.config_hash[:12] if b.config_hash else '-' }}</code></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center text-muted">No backups</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

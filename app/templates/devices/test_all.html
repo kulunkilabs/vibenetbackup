@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Test All Connections - VIBENetBackup{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-plug"></i> Test All Connections</h2>
+    <div>
+        <button class="btn btn-warning" onclick="testAll()">
+            <i class="bi bi-lightning"></i> Test All Now
+        </button>
+        <a href="/devices" class="btn btn-outline-secondary">Back to Devices</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Hostname</th>
+                    <th>IP Address</th>
+                    <th>Type</th>
+                    <th>Engine</th>
+                    <th>Credential</th>
+                    <th>Result</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for device in devices %}
+                <tr>
+                    <td><a href="/devices/{{ device.id }}">{{ device.hostname }}</a></td>
+                    <td><code>{{ device.ip_address }}</code></td>
+                    <td>{{ device_type_labels.get(device.device_type, device.device_type) }}</td>
+                    <td>{{ device.backup_engine }}</td>
+                    <td>
+                        {% if device.credential %}
+                        {{ device.credential.name }}
+                        {% else %}
+                        <span class="text-warning">None</span>
+                        {% endif %}
+                    </td>
+                    <td id="result-{{ device.id }}">
+                        <span class="badge bg-secondary">Not tested</span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-warning test-btn"
+                                data-device-id="{{ device.id }}"
+                                hx-post="/devices/{{ device.id }}/test"
+                                hx-target="#result-{{ device.id }}"
+                                hx-swap="innerHTML">
+                            <i class="bi bi-plug"></i> Test
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No enabled devices</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function testAll() {
+    // Click every test button with a small stagger so we don't flood
+    const buttons = document.querySelectorAll('.test-btn');
+    buttons.forEach((btn, i) => {
+        setTimeout(() => btn.click(), i * 200);
+    });
+}
+</script>
+{% endblock %}

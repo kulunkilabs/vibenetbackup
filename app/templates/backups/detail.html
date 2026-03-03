@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Backup #{{ backup.id }} - VIBENetBackup{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-archive"></i> Backup #{{ backup.id }}</h2>
+    <div>
+        {% if backup.config_text %}
+        <a href="/backups/{{ backup.id }}/download" class="btn btn-info"><i class="bi bi-download"></i> Download</a>
+        {% endif %}
+        <a href="/backups" class="btn btn-outline-secondary">Back to List</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Backup Info</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><td class="text-muted">Device</td><td><a href="/devices/{{ backup.device_id }}">{{ device.hostname if device else 'Unknown' }}</a></td></tr>
+                    <tr><td class="text-muted">Timestamp</td><td>{{ backup.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') if backup.timestamp else '-' }}</td></tr>
+                    <tr>
+                        <td class="text-muted">Status</td>
+                        <td>
+                            {% if backup.status.value == 'success' %}
+                            <span class="badge bg-success">Success</span>
+                            {% elif backup.status.value == 'failed' %}
+                            <span class="badge bg-danger">Failed</span>
+                            {% elif backup.status.value == 'unchanged' %}
+                            <span class="badge bg-secondary">Unchanged</span>
+                            {% else %}
+                            <span class="badge bg-warning">{{ backup.status.value }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr><td class="text-muted">Size</td><td>{{ (backup.file_size / 1024)|round(1) if backup.file_size else '-' }} KB</td></tr>
+                    <tr><td class="text-muted">Hash (SHA256)</td><td><code>{{ backup.config_hash or '-' }}</code></td></tr>
+                    <tr><td class="text-muted">Destination</td><td>{{ backup.destination_type or '-' }} {{ ('- ' + backup.destination_path) if backup.destination_path else '' }}</td></tr>
+                    {% if backup.error_message %}
+                    <tr><td class="text-muted">Error</td><td class="text-danger">{{ backup.error_message }}</td></tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if diff_html %}
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-file-diff"></i> Diff vs Previous Backup (#{{ prev_backup.id }})
+    </div>
+    <div class="card-body p-0">
+        <pre class="diff-view p-3 mb-0"><code>{{ diff_html }}</code></pre>
+    </div>
+</div>
+{% endif %}
+
+{% if backup.config_text %}
+<div class="card">
+    <div class="card-header">
+        <i class="bi bi-file-code"></i> Configuration
+    </div>
+    <div class="card-body p-0">
+        <pre class="config-view p-3 mb-0"><code>{{ backup.config_text }}</code></pre>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

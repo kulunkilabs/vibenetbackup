@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ device.hostname }} - VIBENetBackup{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-router"></i> {{ device.hostname }}</h2>
+    <div>
+        <button class="btn btn-info" hx-post="/backups/{{ device.id }}/now" hx-target="#backup-result" hx-swap="innerHTML">
+            <i class="bi bi-download"></i> Backup Now
+        </button>
+        <button class="btn btn-warning" hx-post="/devices/{{ device.id }}/test" hx-target="#test-result" hx-swap="innerHTML">
+            <i class="bi bi-plug"></i> Test Connection
+        </button>
+        <a href="/devices/{{ device.id }}/edit" class="btn btn-outline-light"><i class="bi bi-pencil"></i> Edit</a>
+    </div>
+</div>
+
+<span id="backup-result"></span>
+<span id="test-result"></span>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Device Info</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><td class="text-muted">IP Address</td><td><code>{{ device.ip_address }}</code></td></tr>
+                    <tr><td class="text-muted">Port</td><td>{{ device.port }}</td></tr>
+                    <tr><td class="text-muted">Type</td><td>{{ device_type_labels.get(device.device_type, device.device_type) }}</td></tr>
+                    <tr><td class="text-muted">Engine</td><td>{{ device.backup_engine }}</td></tr>
+                    <tr><td class="text-muted">Group</td><td>{{ device.group or '-' }}</td></tr>
+                    <tr><td class="text-muted">Credential</td><td>{{ device.credential.name if device.credential else 'None' }}</td></tr>
+                    <tr><td class="text-muted">Enabled</td><td>{{ 'Yes' if device.enabled else 'No' }}</td></tr>
+                    <tr><td class="text-muted">Notes</td><td>{{ device.notes or '-' }}</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Backup History</div>
+            <div class="card-body p-0">
+                <table class="table table-hover table-sm mb-0">
+                    <thead>
+                        <tr><th>Time</th><th>Status</th><th>Size</th><th>Hash</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for b in backups %}
+                        <tr>
+                            <td><a href="/backups/{{ b.id }}">{{ b.timestamp.strftime('%Y-%m-%d %H:%M') if b.timestamp else '-' }}</a></td>
+                            <td>
+                                {% if b.status.value == 'success' %}
+                                <span class="badge bg-success">OK</span>
+                                {% elif b.status.value == 'failed' %}
+                                <span class="badge bg-danger">Fail</span>
+                                {% elif b.status.value == 'unchanged' %}
+                                <span class="badge bg-secondary">Same</span>
+                                {% else %}
+                                <span class="badge bg-warning">{{ b.status.value }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ (b.file_size / 1024)|round(1) if b.file_size else '-' }} KB</td>
+                            <td><code>{{ b.config_hash[:12] if b.config_hash else '-' }}</code></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center text-muted">No backups yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form action="/devices/{{ device.id }}/delete" method="post" onsubmit="return confirm('Delete this device and all its backups?')">
+    <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> Delete Device</button>
+</form>
+{% endblock %}

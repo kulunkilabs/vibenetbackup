@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Trigger Backup - VIBENetBackup{% endblock %}
+
+{% block content %}
+<h2><i class="bi bi-download"></i> Trigger Manual Backup</h2>
+
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="post" action="/backups/trigger">
+            <div class="mb-3">
+                <label class="form-label">Select Devices</label>
+                <div class="row g-2">
+                    {% for device in devices %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="device_ids" value="{{ device.id }}" id="dev-{{ device.id }}">
+                            <label class="form-check-label" for="dev-{{ device.id }}">
+                                {{ device.hostname }} <small class="text-muted">({{ device.ip_address }})</small>
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="mb-3">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('input[name=device_ids]').forEach(c => c.checked = true)">Select All</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('input[name=device_ids]').forEach(c => c.checked = false)">Deselect All</button>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-play-fill"></i> Start Backup</button>
+            <a href="/backups" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

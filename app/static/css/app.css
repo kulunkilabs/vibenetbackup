@@ -1,0 +1,116 @@
+/* VIBENetBackup custom styles */
+
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.navbar-brand {
+    font-weight: 600;
+}
+
+.config-view {
+    max-height: 600px;
+    overflow-y: auto;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-size: 0.85rem;
+    white-space: pre;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+}
+
+.diff-view {
+    max-height: 500px;
+    overflow-y: auto;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-size: 0.85rem;
+    white-space: pre;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+}
+
+/* Diff coloring */
+.diff-view code {
+    white-space: pre-wrap;
+}
+
+/* Card hover effect */
+.card {
+    transition: box-shadow 0.2s;
+}
+
+/* Table links */
+.table a {
+    text-decoration: none;
+}
+
+.table a:hover {
+    text-decoration: underline;
+}
+
+/* HTMX loading indicator */
+.htmx-indicator {
+    display: none;
+}
+
+.htmx-request .htmx-indicator {
+    display: inline-block;
+}
+
+.htmx-request.htmx-indicator {
+    display: inline-block;
+}
+
+/* Badge inside button */
+.btn .badge {
+    position: relative;
+    top: -1px;
+}
+
+/* Spinner for HTMX requests */
+[hx-post], [hx-get] {
+    position: relative;
+}
+
+.htmx-request[hx-post]::after,
+.htmx-request[hx-get]::after {
+    content: '';
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.5s linear infinite;
+    margin-left: 0.5em;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Sticky table headers for scrollable tables */
+.table thead.sticky-top th {
+    position: sticky;
+    top: 0;
+    background-color: #212529;
+    z-index: 1;
+}
+
+/* Card body scrollable area */
+.card-body[style*="overflow-y: auto"]::-webkit-scrollbar {
+    width: 8px;
+}
+
+.card-body[style*="overflow-y: auto"]::-webkit-scrollbar-track {
+    background: #2c3034;
+}
+
+.card-body[style*="overflow-y: auto"]::-webkit-scrollbar-thumb {
+    background: #495057;
+    border-radius: 4px;
+}
+
+.card-body[style*="overflow-y: auto"]::-webkit-scrollbar-thumb:hover {
+    background: #6c757d;
+}
