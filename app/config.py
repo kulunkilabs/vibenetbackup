@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./vibenetbackup.db"
     SECRET_KEY: str = "change-me"
     BACKUP_DIR: str = "./backups"
-    OXIDIZED_URL: str = "http://localhost:5005"
+    OXIDIZED_URL: str = "http://localhost:8888"
     LOG_LEVEL: str = "INFO"
     HOST: str = "0.0.0.0"
     PORT: int = 5005

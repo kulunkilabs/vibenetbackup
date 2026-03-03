@@ -144,7 +144,7 @@ CORS_ORIGINS=http://localhost:5005,http://127.0.0.1:5005,http://0.0.0.0:5005
 BACKUP_DIR=./backups
 
 # Integrations
-OXIDIZED_URL=http://localhost:5005
+OXIDIZED_URL=http://localhost:8888
 
 # Logging
 LOG_LEVEL=INFO
@@ -158,11 +158,47 @@ LOG_LEVEL=INFO
 
 1. **Login** — Use credentials from installation (or `admin`/`changeme-strong-password` for dev)
 2. **Credentials** — Add SSH credentials for your devices ( username + password or SSH key )
-3. **Devices** — Add devices manually or **Import from Oxidized**
+3. **Devices** — Add devices manually or [**Import from Oxidized**](#oxidized-integration)
 4. **Test** — Click **Test All** to verify SSH connectivity
 5. **Destinations** — Configure where backups are stored (local, git, SMB)
 6. **Schedule** — Set up automated backups with cron expressions
 7. **Retention** — Configure GFS retention policies
+
+---
+
+## Oxidized Integration
+
+VIBENetBackup can import your existing device inventory from [Oxidized](https://github.com/ytti/oxidized) and use it as a backup source.
+
+### Default Ports
+
+| Tool | Default Port | Configuration |
+|------|--------------|---------------|
+| **VIBENetBackup** | `5005` | `PORT=5005` in `.env` |
+| **Oxidized** | `8888` | `OXIDIZED_URL=http://localhost:8888` in `.env` |
+
+### Import Devices from Oxidized
+
+1. **Ensure Oxidized is running** on its default port (8888)
+2. **Configure the Oxidized URL** in VIBENetBackup `.env`:
+   ```env
+   OXIDIZED_URL=http://localhost:8888
+   ```
+3. **Go to Devices → Import from Oxidized**
+4. Click **Import** to pull all devices from Oxidized
+
+### Using Oxidized as Backup Engine
+
+VIBENetBackup can also fetch configurations via Oxidized's REST API:
+
+1. **Add credentials** for your devices (same as Oxidized uses)
+2. **Create a device** with device type set to use Oxidized engine
+3. **Run backup** — VIBENetBackup will query Oxidized for the latest config
+
+This is useful when:
+- You want to migrate from Oxidized gradually
+- Oxidized has better support for certain device types
+- You want to use Oxidized's collection but VIBENetBackup's storage/retention
 
 ---
 

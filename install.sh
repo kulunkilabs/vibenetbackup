@@ -184,7 +184,7 @@ if [ ! -f ".env" ]; then
 DATABASE_URL=sqlite:///./vibenetbackup.db
 SECRET_KEY=${SECRET_KEY}
 BACKUP_DIR=./backups
-OXIDIZED_URL=http://localhost:5005
+OXIDIZED_URL=http://localhost:8888
 LOG_LEVEL=INFO
 HOST=0.0.0.0
 PORT=${PORT}
