@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # VIBENetBackup Uninstaller
-# Usage: curl -fsSL https://raw.githubusercontent.com/kulunkilabs/kulunkilabs/main/uninstall.sh | sudo bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/kulunkilabs/vibenetbackup/main/uninstall.sh | sudo bash
 # Version: 0.2-beta
 set -euo pipefail
 
@@ -108,7 +108,7 @@ To completely remove this directory:
   sudo rm -rf ${INSTALL_DIR}
 
 To reinstall:
-  curl -fsSL https://raw.githubusercontent.com/kulunkilabs/kulunkilabs/main/install.sh | sudo bash
+  curl -fsSL https://raw.githubusercontent.com/kulunkilabs/vibenetbackup/main/install.sh | sudo bash
 EOF
     ok "Data preserved. Note left at ${INSTALL_DIR}/README-UNINSTALLED.txt"
     
@@ -147,5 +147,5 @@ if [[ "$KEEP_DATA" =~ ^[Yy]$ ]]; then
     echo -e "  To remove later:   ${YELLOW}sudo rm -rf ${INSTALL_DIR}${NC}"
 fi
 
-echo -e "  To reinstall:      ${YELLOW}curl -fsSL https://raw.githubusercontent.com/kulunkilabs/kulunkilabs/main/install.sh | sudo bash${NC}"
+echo -e "  To reinstall:      ${YELLOW}curl -fsSL https://raw.githubusercontent.com/kulunkilabs/vibenetbackup/main/install.sh | sudo bash${NC}"
 echo ""

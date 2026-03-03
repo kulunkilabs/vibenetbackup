@@ -29,7 +29,7 @@ Network device configuration backup manager with support for multiple backup eng
 One-command installation with systemd service:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kulunkilabs/kulunkilabs/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/kulunkilabs/vibenetbackup/main/install.sh | sudo bash
 ```
 
 **What it does:**
@@ -66,7 +66,7 @@ cd /opt/vibenetbackup
 
 **To update:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kulunkilabs/kulunkilabs/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/kulunkilabs/vibenetbackup/main/install.sh | sudo bash
 ```
 
 ---
@@ -76,7 +76,7 @@ curl -fsSL https://raw.githubusercontent.com/kulunkilabs/kulunkilabs/main/instal
 For development, customization, or running without systemd:
 
 ```bash
-git clone https://github.com/kulunkilabs/kulunkilabs.git
+git clone https://github.com/kulunkilabs/vibenetbackup.git
 cd kulunkilabs
 ./run.sh
 ```
@@ -102,7 +102,7 @@ nano .env
 For containerized deployment:
 
 ```bash
-git clone https://github.com/kulunkilabs/kulunkilabs.git
+git clone https://github.com/kulunkilabs/vibenetbackup.git
 cd kulunkilabs
 docker compose up -d
 ```
@@ -274,7 +274,7 @@ The systemd service runs with:
 ### Quick Uninstall
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kulunkilabs/kulunkilabs/main/uninstall.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/kulunkilabs/vibenetbackup/main/uninstall.sh | sudo bash
 ```
 
 **Options:**
@@ -395,9 +395,9 @@ MIT License — see LICENSE file for details.
 
 ## Links
 
-- **Repository:** https://github.com/kulunkilabs/kulunkilabs
-- **Issues:** https://github.com/kulunkilabs/kulunkilabs/issues
-- **Releases:** https://github.com/kulunkilabs/kulunkilabs/releases
+- **Repository:** https://github.com/kulunkilabs/vibenetbackup
+- **Issues:** https://github.com/kulunkilabs/vibenetbackup/issues
+- **Releases:** https://github.com/kulunkilabs/vibenetbackup/releases
 
 ---
 
