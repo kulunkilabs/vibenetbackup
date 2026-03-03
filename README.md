@@ -393,6 +393,30 @@ MIT License — see LICENSE file for details.
 
 ---
 
+## Screenshots
+
+Add screenshots to `docs/screenshots/` folder and update this section.
+
+<!-- 
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="Dashboard" width="800"/>
+  <br/>
+  <em>Main dashboard with backup statistics and quick actions</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/devices.png" alt="Devices" width="800"/>
+  <br/>
+  <em>Device management interface</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/backups.png" alt="Backups" width="800"/>
+  <br/>
+  <em>Backup history and configuration viewer</em>
+</p>
+-->
+
 ## Links
 
 - **Repository:** https://github.com/kulunkilabs/vibenetbackup
