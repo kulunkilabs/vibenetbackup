@@ -1,6 +1,52 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Edit' if device else 'Add' }} Device - VIBENetBackup{% endblock %}
 
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const deviceType = document.querySelector('select[name="device_type"]');
+    const engine = document.querySelector('select[name="backup_engine"]');
+    const portInput = document.getElementById('port-input');
+    const portLabel = document.getElementById('port-label');
+
+    const enginePorts = { netmiko: 22, scp: 22, oxidized: 8888, pfsense: 443 };
+    const firewallTypes = ['pfsense', 'opnsense'];
+
+    let userChangedPort = {{ 'true' if device else 'false' }};
+    portInput.addEventListener('input', function() { userChangedPort = true; });
+
+    function updatePortHint() {
+        const eng = engine.value;
+        const defaultPort = enginePorts[eng] || 22;
+        portLabel.textContent = (eng === 'pfsense') ? 'Web Port' : 'SSH Port';
+        if (!userChangedPort) {
+            portInput.value = defaultPort;
+        }
+        portInput.placeholder = defaultPort;
+    }
+
+    deviceType.addEventListener('change', function() {
+        const dt = this.value.toLowerCase();
+        if (firewallTypes.includes(dt)) {
+            engine.value = 'pfsense';
+        } else if (engine.value === 'pfsense') {
+            engine.value = 'netmiko';
+        }
+        userChangedPort = false;
+        updatePortHint();
+    });
+
+    engine.addEventListener('change', function() {
+        userChangedPort = false;
+        updatePortHint();
+    });
+
+    // Set initial label without changing port value
+    portLabel.textContent = (engine.value === 'pfsense') ? 'Web Port' : 'SSH Port';
+});
+</script>
+{% endblock %}
+
 {% block content %}
 <h2><i class="bi bi-router"></i> {{ 'Edit' if device else 'Add' }} Device</h2>
 
@@ -46,8 +92,9 @@
                     <input type="text" name="group" class="form-control" value="{{ device.group if device else 'default' }}">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">SSH Port</label>
-                    <input type="number" name="port" class="form-control" value="{{ device.port if device else 22 }}">
+                    <label class="form-label" id="port-label">Port</label>
+                    <input type="number" name="port" id="port-input" class="form-control" value="{{ device.port if device else 22 }}"
+                           placeholder="22 for SSH, 443 for API">
                 </div>
                 {% if device %}
                 <div class="col-md-4">

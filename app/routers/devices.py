@@ -20,6 +20,7 @@ ENGINE_TYPES = {
     "netmiko": "Netmiko (SSH)",
     "scp": "SCP (Paramiko)",
     "oxidized": "Oxidized (REST API)",
+    "pfsense": "pfSense/OPNsense (API)",
 }
 
 

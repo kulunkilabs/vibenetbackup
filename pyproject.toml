@@ -37,3 +37,15 @@ include = ["app*"]
 
 [tool.setuptools.package-data]
 app = ["templates/**/*.html", "static/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/tests/*", "*/test_*"]

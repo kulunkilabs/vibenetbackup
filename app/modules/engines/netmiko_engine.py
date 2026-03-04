@@ -3,7 +3,7 @@ import logging
 from netmiko import ConnectHandler, NetmikoTimeoutException, NetmikoAuthenticationException
 
 from app.modules.engines.base import BackupEngine
-from app.models.device import Device, get_config_commands
+from app.models.device import Device, get_config_commands, get_netmiko_device_type
 from app.models.credential import Credential
 
 logger = logging.getLogger(__name__)
@@ -13,8 +13,10 @@ class NetmikoEngine(BackupEngine):
     """SSH-based backup engine using Netmiko."""
 
     def _build_params(self, device: Device, credential: Credential) -> dict:
+        # Map our device_type to Netmiko's device_type (e.g., opnsense -> linux)
+        netmiko_device_type = get_netmiko_device_type(device.device_type)
         params = {
-            "device_type": device.device_type,
+            "device_type": netmiko_device_type,
             "host": device.ip_address,
             "port": device.port or 22,
             "username": credential.username,
@@ -54,8 +56,9 @@ class NetmikoEngine(BackupEngine):
         params = self._build_params(device, credential)
         commands = get_config_commands(device.device_type)
         logger.info(
-            "Netmiko: fetching config from %s (%s) type=%s cmds=%s",
-            device.hostname, device.ip_address, device.device_type, commands,
+            "Netmiko: fetching config from %s (%s) type=%s (netmiko: %s) cmds=%s",
+            device.hostname, device.ip_address, device.device_type, 
+            params["device_type"], commands,
         )
         try:
             output = await asyncio.to_thread(self._connect_and_fetch, params, commands)

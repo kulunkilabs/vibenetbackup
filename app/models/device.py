@@ -38,6 +38,9 @@ DEVICE_TYPES: dict[str, str] = {
     "arista_eos":           "Arista EOS",
     # Juniper
     "juniper_junos":        "Juniper JunOS",
+    # pfSense / OPNsense (FreeBSD-based)
+    "pfsense":              "pfSense Firewall (FreeBSD)",
+    "opnsense":             "OPNsense Firewall (FreeBSD)",
     # Generic
     "linux":                "Linux (generic SSH)",
     "generic":              "Generic (autodetect)",
@@ -76,6 +79,9 @@ DEVICE_COMMANDS: dict[str, list[str]] = {
     "arista_eos":           ["show running-config"],
     # Juniper
     "juniper_junos":        ["show configuration | display set"],
+    # pfSense / OPNsense (SSH fallback)
+    "pfsense":              ["cat /cf/conf/config.xml"],
+    "opnsense":             ["cat /conf/config.xml"],
     # Fallback
     "generic":              ["show running-config"],
 }
@@ -122,6 +128,9 @@ OXIDIZED_MODEL_MAP: dict[str, str] = {
     "eos":              "arista_eos",
     # Juniper
     "junos":            "juniper_junos",
+    # pfSense / OPNsense
+    "pfsense":          "pfsense",
+    "opnsense":         "opnsense",
     # Palo Alto
     "panos":            "paloalto_panos",
     # Fortinet
@@ -136,6 +145,34 @@ OXIDIZED_MODEL_MAP: dict[str, str] = {
 def oxidized_model_to_device_type(model: str) -> str:
     """Convert an Oxidized model name to a Netmiko device_type. Returns as-is if unknown."""
     return OXIDIZED_MODEL_MAP.get(model.lower(), model.lower())
+
+
+# ── Netmiko device type mapping ────────────────────────────────────────
+# Maps our device_type to Netmiko's device_type string.
+# Some devices (like pfSense/OPNsense) need to use generic SSH types.
+NETMIKO_DEVICE_TYPE_MAP: dict[str, str] = {
+    "pfsense":      "linux",  # FreeBSD - use generic Linux/SSH type
+    "opnsense":     "linux",  # FreeBSD - use generic Linux/SSH type
+}
+
+
+# Default ports per engine type (SSH=22, web API=443)
+ENGINE_DEFAULT_PORTS: dict[str, int] = {
+    "netmiko": 22,
+    "scp": 22,
+    "oxidized": 8888,
+    "pfsense": 443,
+}
+
+
+def get_engine_default_port(engine: str) -> int:
+    """Return the default port for a given backup engine."""
+    return ENGINE_DEFAULT_PORTS.get(engine, 22)
+
+
+def get_netmiko_device_type(device_type: str) -> str:
+    """Get the Netmiko device_type string for our device_type."""
+    return NETMIKO_DEVICE_TYPE_MAP.get(device_type, device_type)
 
 
 def get_config_commands(device_type: str) -> list[str]:

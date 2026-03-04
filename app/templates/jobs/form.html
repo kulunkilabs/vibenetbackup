@@ -42,6 +42,7 @@
                         <option value="netmiko" {{ 'selected' if schedule and schedule.backup_engine == 'netmiko' else '' }}>Netmiko (SSH)</option>
                         <option value="scp" {{ 'selected' if schedule and schedule.backup_engine == 'scp' else '' }}>SCP</option>
                         <option value="oxidized" {{ 'selected' if schedule and schedule.backup_engine == 'oxidized' else '' }}>Oxidized</option>
+                        <option value="pfsense" {{ 'selected' if schedule and schedule.backup_engine == 'pfsense' else '' }}>pfSense/OPNsense (API)</option>
                     </select>
                 </div>
                 <div class="col-12">

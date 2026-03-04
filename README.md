@@ -9,7 +9,7 @@ Network device configuration backup manager with support for multiple backup eng
 
 ## Features
 
-- **Multi-engine backup** — Netmiko (SSH), SCP (Paramiko), Oxidized REST API
+- **Multi-engine backup** — Netmiko (SSH), SCP (Paramiko), Oxidized REST API, pfSense/OPNsense API
 - **Multi-destination storage** — Local filesystem, Forgejo/Git, SMB/CIFS shares
 - **Import from Oxidized** — Pull your entire device inventory in one click
 - **Automated scheduling** — Cron-based with APScheduler
@@ -202,6 +202,75 @@ This is useful when:
 
 ---
 
+## pfSense / OPNsense Integration
+
+VIBENetBackup supports backing up pfSense and OPNsense firewalls via their web APIs. Both are FreeBSD-based and use the `pfsense` backup engine.
+
+### OPNsense Setup
+
+OPNsense uses **API key/secret** pairs — regular web UI credentials will not work.
+
+1. **Create an API key** in OPNsense:
+   - Log into the OPNsense web UI
+   - Go to **System > Access > Users**
+   - Edit the backup user (or create a dedicated one)
+   - Scroll to **API keys**, click **+** to generate a new key pair
+   - Save the downloaded `apikey.txt` — it contains the key and secret
+2. **Assign the required privilege:**
+   - Edit the user (or its group) and add the **Diagnostics: Configuration History** privilege
+   - This grants access to the `/api/core/backup/` endpoints
+3. **Add credential** in VIBENetBackup:
+   - **Username:** the API key (e.g. `w86XNZob/8Oq8aC5r0kbNarNtdpo...`)
+   - **Password:** the API secret (e.g. `XeD26XVrJ5ilAc/EmglCRC+0j2e5...`)
+4. **Add device:**
+   - **Device type:** OPNsense Firewall (FreeBSD)
+   - **Backup engine:** pfSense/OPNsense (API)
+   - **Port:** 443 (or your custom web UI port)
+   - Assign the credential from step 3
+
+### pfSense Setup
+
+pfSense supports two API methods. The engine tries both automatically:
+
+**Option A — pfSense REST API package (recommended):**
+1. Install the [pfSense REST API](https://pfrest.org/) package on your firewall
+2. Create an API user or use an existing admin account
+3. **Add credential** in VIBENetBackup with the API username and password
+4. The engine will use `/api/v1/config/backup`
+
+**Option B — PHP endpoint (no package needed):**
+1. **Add credential** with your pfSense web UI username and password
+2. **Required privilege:** The user must have the **WebCfg - Diagnostics: Backup & Restore** privilege
+   - Go to **System > User Manager > Edit User > Effective Privileges**
+   - Add `WebCfg - Diagnostics: Backup & Restore` (or use an admin account)
+3. The engine will use `/diag_backup.php` with CSRF token handling
+
+**Add device:**
+- **Device type:** pfSense Firewall (FreeBSD)
+- **Backup engine:** pfSense/OPNsense (API)
+- **Port:** 443 (or your custom web UI port)
+- Assign the credential
+
+### Troubleshooting
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| **401 — Authentication failed** (OPNsense) | Using web UI credentials instead of API key/secret | Create API key in System > Access > Users > API keys |
+| **401 — Authentication failed** (pfSense) | Wrong username or password | Verify web UI credentials or REST API credentials |
+| **403 — Access denied** (OPNsense) | API key works but user lacks privilege | Add **Diagnostics: Configuration History** to the user (System > Access > Users > Effective Privileges) |
+| **403 — Access denied** (pfSense) | User lacks backup privilege | Add **WebCfg - Diagnostics: Backup & Restore** to the user (System > User Manager > Effective Privileges) |
+| **Connection timeout** | Wrong IP, port, or firewall blocking access | Verify the IP and web UI port, check firewall rules |
+| **SSL error then HTTP fallback** | Normal — HTTPS tried first, falls back to HTTP | No action needed (or configure HTTPS on the firewall) |
+
+### Notes
+
+- **HTTPS/HTTP:** The engine tries HTTPS first and falls back to HTTP automatically
+- **Self-signed certificates:** Accepted by default (common on firewall web UIs)
+- **SSH fallback:** If you set the backup engine to Netmiko (SSH) instead, it will use `cat /cf/conf/config.xml` (pfSense) or `cat /conf/config.xml` (OPNsense) over SSH
+- **Custom ports:** Set the port field to match your firewall's web UI port (e.g. 8443)
+
+---
+
 ## Supported Devices
 
 | Vendor | Netmiko Type | Config Command |
@@ -217,6 +286,8 @@ This is useful when:
 | QuantaMesh | `quanta_mesh` | `show running-config` |
 | Arista EOS | `arista_eos` | `show running-config` |
 | Juniper JunOS | `juniper_junos` | `show configuration \| display set` |
+| pfSense | `pfsense` | API or `cat /cf/conf/config.xml` |
+| OPNsense | `opnsense` | API or `cat /conf/config.xml` |
 
 Adding a new device type is one line in `app/models/device.py` — no migration needed.
 
