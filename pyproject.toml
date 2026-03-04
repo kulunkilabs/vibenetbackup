@@ -1,6 +1,6 @@
 [project]
 name = "vibenetbackup"
-version = "1.0.0"
+version = "0.3-beta"
 description = "Network device configuration backup manager"
 readme = "README.md"
 license = {text = "MIT"}

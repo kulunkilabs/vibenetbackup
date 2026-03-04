@@ -2,7 +2,7 @@
 
 Network device configuration backup manager with support for multiple backup engines, storage destinations, automated scheduling, and retention policies.
 
-**Version:** 0.2-beta  
+**Version:** 0.3-beta  
 **License:** MIT
 
 ---

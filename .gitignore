@@ -9,3 +9,5 @@ backups/*
 *.egg-info/
 dist/
 build/
+test_*.py
+!tests/test_*.py
