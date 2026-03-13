@@ -793,6 +793,16 @@ MIT License. See [LICENSE](LICENSE) for details.
 </p>
 
 
+## Support
+
+If you find VIBENetBackup useful, consider buying me a coffee:
+
+<a href="https://ko-fi.com/kulunkilabs" target="_blank">
+  <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Buy Me a Coffee at ko-fi.com" />
+</a>
+
+---
+
 ## Links
 
 - **Repository:** https://github.com/kulunkilabs/vibenetbackup
