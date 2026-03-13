@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Backup #{{ backup.id }} - VIBENetBackup{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-archive"></i> Backup #{{ backup.id }}</h2>
+    <div>
+        {% if manifest %}
+        <a href="/backups/{{ backup.id }}/download" class="btn btn-success">
+            <i class="bi bi-file-zip"></i> Download ZIP
+        </a>
+        {% elif backup.config_text %}
+        <a href="/backups/{{ backup.id }}/download" class="btn btn-info">
+            <i class="bi bi-download"></i> Download .cfg
+        </a>
+        {% endif %}
+        <form method="post" action="/backups/{{ backup.id }}/delete" class="d-inline"
+              onsubmit="return confirm('Delete this backup? This will also remove the file from disk.')">
+            <button type="submit" class="btn btn-outline-danger ms-1">
+                <i class="bi bi-trash"></i> Delete
+            </button>
+        </form>
+        <a href="/backups" class="btn btn-outline-secondary ms-1">Back to List</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Backup Info</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><td class="text-muted">Device</td><td><a href="/devices/{{ backup.device_id }}">{{ device.hostname if device else 'Unknown' }}</a></td></tr>
+                    <tr><td class="text-muted">Timestamp</td><td>{{ backup.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') if backup.timestamp else '-' }}</td></tr>
+                    <tr>
+                        <td class="text-muted">Status</td>
+                        <td>
+                            {% if backup.status.value == 'success' %}<span class="badge bg-success">Success</span>
+                            {% elif backup.status.value == 'failed' %}<span class="badge bg-danger">Failed</span>
+                            {% elif backup.status.value == 'unchanged' %}<span class="badge bg-secondary">Unchanged</span>
+                            {% else %}<span class="badge bg-warning">{{ backup.status.value }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Size</td>
+                        <td>{% if backup.file_size %}{% if backup.file_size > 1048576 %}{{ (backup.file_size / 1048576)|round(1) }} MB{% else %}{{ (backup.file_size / 1024)|round(1) }} KB{% endif %}{% else %}-{% endif %}</td>
+                    </tr>
+                    <tr><td class="text-muted">Hash (SHA256)</td><td><code class="small">{{ backup.config_hash[:16] ~ '...' if backup.config_hash else '-' }}</code></td></tr>
+                    <tr><td class="text-muted">Destination</td><td>{{ backup.destination_type or '-' }}</td></tr>
+                    {% if backup.destination_path %}<tr><td class="text-muted">Path</td><td><code class="small">{{ backup.destination_path }}</code></td></tr>{% endif %}
+                    {% if manifest %}<tr><td class="text-muted">Files</td><td>{{ manifest.file_count }} files collected</td></tr>{% endif %}
+                    {% if backup.error_message %}<tr><td class="text-muted">Error</td><td class="text-danger">{{ backup.error_message }}</td></tr>{% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if manifest %}
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-folder2-open"></i> Files in backup <span class="badge bg-secondary ms-1">{{ manifest.file_count }}</span></span>
+        <input type="text" id="fileFilter" class="form-control form-control-sm w-auto"
+               placeholder="Filter files..." style="min-width:220px">
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height:600px;overflow-y:auto;">
+            <table class="table table-sm table-hover mb-0" id="fileTable">
+                <thead class="sticky-top bg-dark">
+                    <tr><th>Path</th><th class="text-end" style="width:120px">Actions</th></tr>
+                </thead>
+                <tbody>
+                    {% for f in manifest.files %}
+                    <tr class="file-row">
+                        <td class="small font-monospace"><i class="bi bi-file-earmark-text text-muted me-1"></i>{{ f }}</td>
+                        <td class="text-end">
+                            <button class="btn btn-outline-secondary btn-sm py-0 px-2 me-1 btn-view-file"
+                                    data-backup="{{ backup.id }}"
+                                    data-path="{{ f }}"
+                                    data-filename="{{ f.split('/')|last }}"
+                                    title="View">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <a href="/backups/{{ backup.id }}/file?path={{ f | urlencode }}"
+                               class="btn btn-outline-info btn-sm py-0 px-2" title="Download">
+                                <i class="bi bi-download"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<!-- File viewer modal -->
+<div class="modal fade" id="fileViewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title font-monospace" id="fileViewModalTitle"></h6>
+                <div class="ms-auto d-flex gap-2 align-items-center">
+                    <a id="fileViewDownloadBtn" href="#" class="btn btn-sm btn-outline-info">
+                        <i class="bi bi-download"></i> Download
+                    </a>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+            </div>
+            <div class="modal-body p-0">
+                <div id="fileViewSpinner" class="text-center py-5">
+                    <div class="spinner-border text-secondary" role="status"></div>
+                    <div class="mt-2 text-muted small">Loading...</div>
+                </div>
+                <pre id="fileViewContent" class="p-3 mb-0 d-none"
+                     style="max-height:70vh;overflow-y:auto;font-size:0.8rem;white-space:pre-wrap;word-break:break-all;"></pre>
+                <div id="fileViewBinary" class="p-4 text-center text-muted d-none">
+                    <i class="bi bi-file-binary fs-2"></i>
+                    <div class="mt-2">Binary file — use Download to save it.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('fileFilter').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#fileTable .file-row').forEach(function(row) {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+
+document.querySelectorAll('.btn-view-file').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const backupId = this.dataset.backup;
+        const filePath = this.dataset.path;
+        const filename = this.dataset.filename;
+
+        const modal = new bootstrap.Modal(document.getElementById('fileViewModal'));
+        document.getElementById('fileViewModalTitle').textContent = filePath;
+        document.getElementById('fileViewDownloadBtn').href = '/backups/' + backupId + '/file?path=' + encodeURIComponent(filePath);
+        document.getElementById('fileViewSpinner').classList.remove('d-none');
+        document.getElementById('fileViewContent').classList.add('d-none');
+        document.getElementById('fileViewBinary').classList.add('d-none');
+        document.getElementById('fileViewContent').textContent = '';
+        modal.show();
+
+        fetch('/backups/' + backupId + '/view-file?path=' + encodeURIComponent(filePath))
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(text) {
+                document.getElementById('fileViewSpinner').classList.add('d-none');
+                // Heuristic: if >10% non-printable chars → treat as binary
+                const nonPrint = (text.match(/[\x00-\x08\x0e-\x1f\x7f]/g) || []).length;
+                if (nonPrint / text.length > 0.1) {
+                    document.getElementById('fileViewBinary').classList.remove('d-none');
+                } else {
+                    document.getElementById('fileViewContent').textContent = text;
+                    document.getElementById('fileViewContent').classList.remove('d-none');
+                }
+            })
+            .catch(function(err) {
+                document.getElementById('fileViewSpinner').classList.add('d-none');
+                document.getElementById('fileViewContent').textContent = 'Error loading file: ' + err.message;
+                document.getElementById('fileViewContent').classList.remove('d-none');
+            });
+    });
+});
+</script>
+
+{% else %}
+
+{% if diff_html %}
+<div class="card mb-4">
+    <div class="card-header"><i class="bi bi-file-diff"></i> Diff vs Previous Backup (#{{ prev_backup.id }})</div>
+    <div class="card-body p-0"><pre class="diff-view p-3 mb-0"><code>{{ diff_html }}</code></pre></div>
+</div>
+{% endif %}
+
+{% if backup.config_text %}
+<div class="card">
+    <div class="card-header"><i class="bi bi-file-code"></i> Configuration</div>
+    <div class="card-body p-0"><pre class="config-view p-3 mb-0"><code>{{ backup.config_text }}</code></pre></div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

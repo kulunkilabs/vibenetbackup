@@ -1,0 +1,13 @@
+{% if status == 'success' %}
+<span class="badge bg-success">Success</span>
+{% elif status == 'failed' %}
+<span class="badge bg-danger">Failed</span>
+{% elif status == 'unchanged' %}
+<span class="badge bg-secondary">Unchanged</span>
+{% elif status == 'in_progress' %}
+<span class="badge bg-warning">
+    <span class="spinner-border spinner-border-sm" role="status"></span> Running
+</span>
+{% else %}
+<span class="badge bg-secondary">{{ status }}</span>
+{% endif %}

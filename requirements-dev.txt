@@ -1,0 +1,5 @@
+# Development dependencies
+pytest
+pytest-asyncio
+pytest-cov
+httpx  # already in main requirements, needed for TestClient

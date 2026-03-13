@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Import from Oxidized - VIBENetBackup{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-cloud-download"></i> Import from Oxidized</h2>
+    <a href="/devices" class="btn btn-outline-secondary">Back to Devices</a>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle"></i> {{ error }}
+    <hr>
+    <small>Check that <code>OXIDIZED_URL</code> is set correctly in your <code>.env</code> file.
+    Current: <code>{{ oxidized_url }}</code></small>
+</div>
+{% endif %}
+
+{% if nodes %}
+<form method="post" action="/devices/import/oxidized">
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-list-check"></i> {{ nodes|length }} nodes found in Oxidized</span>
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAll(true)">Select All New</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAll(false)">Deselect All</button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"></th>
+                        <th>Name</th>
+                        <th>IP</th>
+                        <th>Oxidized Model</th>
+                        <th>Mapped Type</th>
+                        <th>Group</th>
+                        <th>Oxidized Status</th>
+                        <th>In DB?</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for node in nodes %}
+                    <tr class="{{ 'table-secondary' if node.already_exists else '' }}">
+                        <td>
+                            {% if not node.already_exists %}
+                            <input type="checkbox" class="form-check-input node-check" name="node_{{ loop.index0 }}"
+                                   value='{{ {"name": node.name or "", "ip": node.ip or "", "model": node.model or "generic", "group": node.group or "default"} | tojson }}'
+                                   checked>
+                            {% else %}
+                            <i class="bi bi-check-circle text-muted"></i>
+                            {% endif %}
+                        </td>
+                        <td>{{ node.name or '-' }}</td>
+                        <td><code>{{ node.ip or '-' }}</code></td>
+                        <td><span class="badge bg-info">{{ node.model or '?' }}</span></td>
+                        <td><span class="badge bg-secondary">{{ node.mapped_label }}</span></td>
+                        <td>{{ node.group or '-' }}</td>
+                        <td>
+                            {% if node.get('last', {}).get('status', '') == 'success' or node.get('status', '') == 'success' %}
+                            <span class="badge bg-success">OK</span>
+                            {% elif node.get('last', {}).get('status', '') == 'no_connection' or node.get('status', '') == 'no_connection' %}
+                            <span class="badge bg-danger">No Connection</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ node.get('status', node.get('last', {}).get('status', '?')) }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if node.already_exists %}
+                            <span class="badge bg-warning">Already exists</span>
+                            {% else %}
+                            <span class="badge bg-success">New</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">Import Settings</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Assign Credential</label>
+                    <select name="credential_id" class="form-select">
+                        <option value="">-- None (assign later) --</option>
+                        {% for c in credentials %}
+                        <option value="{{ c.id }}">{{ c.name }} ({{ c.username }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Default Backup Engine</label>
+                    <select name="backup_engine" class="form-select">
+                        <option value="oxidized" selected>Oxidized (fetch via Oxidized API)</option>
+                        <option value="netmiko">Netmiko (direct SSH)</option>
+                        <option value="scp">SCP (Paramiko)</option>
+                        <option value="pfsense">pfSense/OPNsense (API)</option>
+                    </select>
+                    <div class="form-text">
+                        Use <strong>oxidized</strong> to keep fetching configs through Oxidized,
+                        or <strong>netmiko</strong> to SSH directly from VIBENetBackup.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-lg">
+        <i class="bi bi-cloud-download"></i> Import Selected Devices
+    </button>
+    <a href="/devices" class="btn btn-outline-secondary btn-lg">Cancel</a>
+</form>
+
+<script>
+function toggleAll(checked) {
+    document.querySelectorAll('.node-check').forEach(cb => cb.checked = checked);
+}
+</script>
+
+{% elif not error %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> No nodes found in Oxidized.
+    Make sure Oxidized is running and has devices configured.
+</div>
+{% endif %}
+{% endblock %}

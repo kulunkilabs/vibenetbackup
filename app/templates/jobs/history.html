@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Job History - VIBENetBackup{% endblock %}
+
+{% block content %}
+<h2><i class="bi bi-journal-text"></i> Job History</h2>
+
+<div class="card mt-3">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Job Name</th>
+                    <th>Started</th>
+                    <th>Completed</th>
+                    <th>Status</th>
+                    <th>Success</th>
+                    <th>Failed</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in runs %}
+                <tr>
+                    <td><a href="/jobs/history/{{ run.id }}">{{ run.id }}</a></td>
+                    <td>{{ run.job_name }}</td>
+                    <td>{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') if run.started_at else '-' }}</td>
+                    <td>{{ run.completed_at.strftime('%Y-%m-%d %H:%M:%S') if run.completed_at else '-' }}</td>
+                    <td>
+                        {% if run.status.value == 'completed' %}
+                        <span class="badge bg-success">Completed</span>
+                        {% elif run.status.value == 'failed' %}
+                        <span class="badge bg-danger">Failed</span>
+                        {% elif run.status.value == 'running' %}
+                        <span class="badge bg-warning">Running</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ run.status.value }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-success">{{ run.devices_success }}</td>
+                    <td class="text-danger">{{ run.devices_failed }}</td>
+                    <td>{{ run.devices_total }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="text-center text-muted py-4">No job runs yet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Clone' if clone else ('Edit' if device else 'Add') }} Device - VIBENetBackup{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const deviceType = document.querySelector('select[name="device_type"]');
+    const engine = document.querySelector('select[name="backup_engine"]');
+    const portInput = document.getElementById('port-input');
+    const portLabel = document.getElementById('port-label');
+
+    const enginePorts = { netmiko: 22, scp: 22, oxidized: 8888, pfsense: 443, proxmox: 22 };
+    const firewallTypes = ['pfsense', 'opnsense'];
+    const proxmoxTypes  = ['proxmox'];
+
+    const engineHints = {
+        netmiko:  'SSH CLI — for network devices (switches, routers, firewalls)',
+        scp:      'Pulls a config file directly over SCP/SFTP',
+        oxidized: 'Delegates to a running Oxidized instance via its REST API',
+        pfsense:  'Uses the pfSense / OPNsense XML config API over HTTPS',
+        proxmox:  'Connects via SFTP and downloads all Proxmox VE config files as a .tar.gz archive (SSH port 22)',
+    };
+
+    const engineHintEl = document.getElementById('engine-hint');
+
+    let userChangedPort = {{ 'true' if device else 'false' }};
+    portInput.addEventListener('input', function() { userChangedPort = true; });
+
+    function updatePortHint() {
+        const eng = engine.value;
+        const defaultPort = enginePorts[eng] || 22;
+        portLabel.textContent = (eng === 'pfsense') ? 'Web Port' : 'SSH Port';
+        if (!userChangedPort) {
+            portInput.value = defaultPort;
+        }
+        portInput.placeholder = defaultPort;
+        if (engineHintEl) engineHintEl.textContent = engineHints[eng] || '';
+    }
+
+    deviceType.addEventListener('change', function() {
+        const dt = this.value.toLowerCase();
+        if (firewallTypes.includes(dt)) {
+            engine.value = 'pfsense';
+        } else if (proxmoxTypes.includes(dt)) {
+            engine.value = 'proxmox';
+        } else if (['pfsense', 'proxmox'].includes(engine.value)) {
+            engine.value = 'netmiko';
+        }
+        userChangedPort = false;
+        updatePortHint();
+    });
+
+    engine.addEventListener('change', function() {
+        userChangedPort = false;
+        updatePortHint();
+    });
+
+    // Set initial state
+    portLabel.textContent = (engine.value === 'pfsense') ? 'Web Port' : 'SSH Port';
+    if (engineHintEl) engineHintEl.textContent = engineHints[engine.value] || '';
+});
+</script>
+{% endblock %}
+
+{% block content %}
+{% set src = clone if clone else device %}
+<h2><i class="bi bi-router"></i> {{ 'Clone' if clone else ('Edit' if device else 'Add') }} Device</h2>
+
+{% if clone %}
+<div class="alert alert-info py-2 mt-2">
+    <i class="bi bi-copy"></i> Cloning from <strong>{{ clone.hostname }}</strong> — change the hostname and IP address, then save.
+</div>
+{% endif %}
+
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="post" action="{{ '/devices/' ~ device.id ~ '/edit' if device else '/devices/add' }}">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Hostname</label>
+                    <input type="text" name="hostname" class="form-control" value="{{ src.hostname if src else '' }}" required {% if clone %}autofocus{% endif %}>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">IP Address</label>
+                    <input type="text" name="ip_address" class="form-control" value="{{ src.ip_address if src else '' }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Device Type</label>
+                    <select name="device_type" class="form-select">
+                        {% for key, label in device_types.items() %}
+                        <option value="{{ key }}" {{ 'selected' if src and src.device_type == key else '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Backup Engine</label>
+                    <select name="backup_engine" class="form-select">
+                        {% for key, label in engine_types.items() %}
+                        <option value="{{ key }}" {{ 'selected' if src and src.backup_engine == key else '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <div id="engine-hint" class="form-text text-info mt-1"></div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Credential</label>
+                    <select name="credential_id" class="form-select">
+                        <option value="">-- None --</option>
+                        {% for c in credentials %}
+                        <option value="{{ c.id }}" {{ 'selected' if src and src.credential_id == c.id else '' }}>{{ c.name }} ({{ c.username }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Group</label>
+                    <select name="group" class="form-select">
+                        {% set current_group = src.group if src else 'default' %}
+                        {% for g in groups %}
+                        <option value="{{ g.name }}" {{ 'selected' if g.name == current_group else '' }}>{{ g.name }}</option>
+                        {% endfor %}
+                        {% if current_group and current_group not in groups|map(attribute='name')|list %}
+                        <option value="{{ current_group }}" selected>{{ current_group }}</option>
+                        {% endif %}
+                    </select>
+                    <div class="form-text">Manage groups at <a href="/groups">Settings → Groups</a></div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" id="port-label">Port</label>
+                    <input type="number" name="port" id="port-input" class="form-control" value="{{ src.port if src else 22 }}"
+                           placeholder="22 for SSH, 443 for API">
+                </div>
+                {% if device %}
+                <div class="col-md-4">
+                    <label class="form-label">Enabled</label>
+                    <select name="enabled" class="form-select">
+                        <option value="true" {{ 'selected' if device.enabled else '' }}>Yes</option>
+                        <option value="false" {{ 'selected' if not device.enabled else '' }}>No</option>
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-12">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2">{{ src.notes if src and src.notes else '' }}</textarea>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i> {{ 'Save Changes' if device else ('Save Clone' if clone else 'Add Device') }}
+                </button>
+                <a href="{{ '/devices/' ~ device.id if device else ('/devices/' ~ clone.id if clone else '/devices') }}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

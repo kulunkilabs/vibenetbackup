@@ -1,0 +1,8 @@
+<div class="progress" style="height: 25px;">
+    {% set pct = (success / total * 100) if total > 0 else 0 %}
+    {% set fail_pct = (failed / total * 100) if total > 0 else 0 %}
+    <div class="progress-bar bg-success" style="width: {{ pct }}%">{{ success }}</div>
+    {% if failed > 0 %}
+    <div class="progress-bar bg-danger" style="width: {{ fail_pct }}%">{{ failed }}</div>
+    {% endif %}
+</div>

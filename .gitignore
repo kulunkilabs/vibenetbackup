@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.db
+backups/*
+!backups/.gitkeep
+ssh_keys/*
+.venv/
+*.egg-info/
+dist/
+/build/
+test_*.py
+!tests/test_*.py

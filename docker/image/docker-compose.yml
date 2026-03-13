@@ -1,0 +1,42 @@
+# VIBENetBackup — Pre-built Image
+# Version: 1.0
+#
+# Uses the pre-built image from GitHub Container Registry.
+# No need to clone the repo or build anything.
+#
+# First-time login to the registry (only needed once per machine):
+#   docker login ghcr.io
+#
+# Usage:
+#   1. Edit the environment variables below (at minimum SECRET_KEY and AUTH_PASSWORD)
+#   2. docker compose up -d
+#
+# Update to latest image:
+#   docker compose pull && docker compose up -d
+#
+# To build and push a new image to the registry, run from repo root:
+#   bash docker/build-and-push.sh 1.0
+
+services:
+  vibenetbackup:
+    image: ghcr.io/kulunkilabs/vibenetbackup:latest
+    ports:
+      - "5005:5005"
+    volumes:
+      - ./data:/app/data
+      - ./backups:/app/backups
+      - ./ssh_keys:/app/ssh_keys
+    environment:
+      - DATABASE_URL=sqlite:///./data/vibenetbackup.db
+      - SECRET_KEY=change-me-to-a-random-secret-key
+      - BACKUP_DIR=./backups
+      - OXIDIZED_URL=http://localhost:8888
+      - LOG_LEVEL=INFO
+      - HOST=0.0.0.0
+      - PORT=5005
+      - AUTH_USERNAME=admin
+      - AUTH_PASSWORD=changeme-strong-password
+      # CORS: * allows all origins. For production, restrict to your IP/domain:
+      # e.g. http://192.168.1.50:5005,https://backup.yourdomain.com
+      - CORS_ORIGINS=*
+    restart: unless-stopped

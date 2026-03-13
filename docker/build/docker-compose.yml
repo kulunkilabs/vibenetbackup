@@ -1,0 +1,25 @@
+# VIBENetBackup — Build from Source
+# Version: 1.0
+#
+# Builds the Docker image locally from the repository Dockerfile.
+# Requires cloning the repo first.
+#
+# Usage:
+#   1. cp .env.example .env && nano .env
+#   2. docker compose up -d --build
+#
+# Update:
+#   git pull && docker compose up -d --build
+
+services:
+  vibenetbackup:
+    build: ../../
+    ports:
+      - "5005:5005"
+    volumes:
+      - ./data:/app/data
+      - ./backups:/app/backups
+      - ./ssh_keys:/app/ssh_keys
+    env_file:
+      - ../../.env
+    restart: unless-stopped
