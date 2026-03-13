@@ -30,7 +30,7 @@ fail()  { echo -e "${RED}[FAIL]${NC}  $*"; exit 1; }
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║       VIBENetBackup Installer                ║${NC}"
-echo -e "${GREEN}║       Version: ${VERSION}                      ║${NC}"
+printf "${GREEN}║       Version: %-29s║${NC}\n" "${VERSION}"
 echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -285,7 +285,7 @@ fi
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║     Installation Complete!                   ║${NC}"
-echo -e "${GREEN}║     Version: ${VERSION}                      ║${NC}"
+printf "${GREEN}║     Version: %-31s║${NC}\n" "${VERSION}"
 echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "  Web UI:    ${BLUE}http://$(hostname -I | awk '{print $1}'):${PORT}${NC}"

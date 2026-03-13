@@ -27,7 +27,7 @@ fail()  { echo -e "${RED}[FAIL]${NC}  $*"; exit 1; }
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║       VIBENetBackup Uninstaller              ║${NC}"
-echo -e "${GREEN}║       Version: ${VERSION}                      ║${NC}"
+printf "${GREEN}║       Version: %-29s║${NC}\n" "${VERSION}"
 echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
 
