@@ -23,9 +23,11 @@
                 <div class="col-12">
                     <label class="form-label">Configuration (JSON)</label>
                     <textarea name="config_json" class="form-control font-monospace" rows="6" id="config-json">{{ destination.config_json|tojson(indent=2) if destination and destination.config_json else '{}' }}</textarea>
-                    <div class="form-text">
+                    <div class="form-text" id="config-help">
                         <strong>Local:</strong> <code>{"path": "./backups"}</code><br>
-                        <strong>Forgejo:</strong> <code>{"repo_path": "./repos/configs", "remote_url": "https://...", "branch": "main"}</code><br>
+                        <strong>Git (token):</strong> <code>{"repo_path": "./repos/configs", "remote_url": "https://github.com/org/repo.git", "branch": "main", "auth_method": "token", "token": "ghp_..."}</code><br>
+                        <strong>Git (SSH):</strong> <code>{"repo_path": "./repos/configs", "remote_url": "git@github.com:org/repo.git", "branch": "main", "auth_method": "ssh", "ssh_key_path": "/app/ssh_keys/id_ed25519"}</code><br>
+                        <strong>Git (user/pass):</strong> <code>{"repo_path": "./repos/configs", "remote_url": "https://gitea.local/org/repo.git", "branch": "main", "auth_method": "password", "username": "...", "password": "..."}</code><br>
                         <strong>SMB:</strong> <code>{"server": "nas", "share": "backups", "username": "...", "password": "...", "base_path": "network"}</code>
                     </div>
                 </div>

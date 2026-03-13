@@ -8,6 +8,9 @@ from app.database import Base
 class DestinationType(str, enum.Enum):
     local = "local"
     forgejo = "forgejo"
+    github = "github"
+    gitea = "gitea"
+    git = "git"
     smb = "smb"
 
 

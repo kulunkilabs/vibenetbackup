@@ -10,7 +10,7 @@ Network device configuration backup manager with support for multiple backup eng
 ## Features
 
 - **Multi-engine backup** — Netmiko (SSH), SCP (Paramiko), Oxidized REST API, pfSense/OPNsense API, Proxmox VE (SSH/SFTP)
-- **Multi-destination storage** — Local filesystem, Forgejo/Git, SMB/CIFS shares
+- **Multi-destination storage** — Local filesystem, Git (GitHub/Gitea/Forgejo with token, SSH, or username/password), SMB/CIFS shares
 - **Proxmox VE backup** — Collects 90+ config files via SFTP, stores as ZIP, file browser with per-file download and inline viewer
 - **Import from Oxidized** — Pull your entire device inventory in one click
 - **Groups** — Organise devices and credentials into named groups
