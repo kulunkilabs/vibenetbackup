@@ -2,7 +2,7 @@
 
 Network device configuration backup manager with support for multiple backup engines, storage destinations, automated scheduling, and retention policies.
 
-**Version:** 1.0
+**Version:** 1.1
 **License:** MIT
 
 ---
@@ -153,8 +153,8 @@ docker compose up -d
 To build a new image and push it to the container registry so others can use Method 3:
 
 ```bash
-# From the repo root — builds, tags :1.0 + :latest, and pushes
-bash docker/build-and-push.sh 1.0
+# From the repo root — builds, tags :1.1 + :latest, and pushes
+bash docker/build-and-push.sh 1.1
 ```
 
 The script will prompt for your registry credentials on first run. After it completes, `docker compose pull` in any Method 3 deployment will pick up the new image.
