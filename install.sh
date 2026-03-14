@@ -87,88 +87,76 @@ else
     ok "User $SERVICE_USER exists"
 fi
 
+# ── Preserve existing data before any changes ─────────────────
+SAFE_DIR=$(mktemp -d /tmp/vibenetbackup-safe.XXXXXX)
+
+if [ -f "$INSTALL_DIR/.env" ]; then
+    cp "$INSTALL_DIR/.env" "$SAFE_DIR/.env"
+    warn "Existing .env saved — SECRET_KEY and credentials will be preserved"
+fi
+if [ -f "$INSTALL_DIR/vibenetbackup.db" ]; then
+    cp "$INSTALL_DIR/vibenetbackup.db" "$SAFE_DIR/vibenetbackup.db"
+    warn "Existing database saved"
+fi
+if [ -d "$INSTALL_DIR/backups" ] && [ "$(ls -A "$INSTALL_DIR/backups" 2>/dev/null)" ]; then
+    cp -r "$INSTALL_DIR/backups" "$SAFE_DIR/backups"
+    warn "Existing backups saved"
+fi
+if [ -d "$INSTALL_DIR/ssh_keys" ] && [ "$(ls -A "$INSTALL_DIR/ssh_keys" 2>/dev/null)" ]; then
+    cp -r "$INSTALL_DIR/ssh_keys" "$SAFE_DIR/ssh_keys"
+    warn "Existing SSH keys saved"
+fi
+
 # ── Clone / update repository ─────────────────────────────────
 if [ -d "$INSTALL_DIR/.git" ]; then
     info "Updating existing installation..."
     cd "$INSTALL_DIR"
-    # Ensure all files are owned by the service user before git reset
     chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
     sudo -u "$SERVICE_USER" git fetch origin
     sudo -u "$SERVICE_USER" git reset --hard "origin/$BRANCH"
     ok "Updated to latest"
 else
-    # Check for existing data (manual install or migration scenario)
-    EXISTING_DB=""
-    EXISTING_BACKUPS=""
-    EXISTING_ENV=""
-    EXISTING_SSH_KEYS=""
+    # Remove old directory if it exists (data already safe)
+    if [ -d "$INSTALL_DIR" ]; then
+        rm -rf "$INSTALL_DIR"
+    fi
 
-    if [ -f "$INSTALL_DIR/vibenetbackup.db" ]; then
-        EXISTING_DB="$INSTALL_DIR/vibenetbackup.db"
-        warn "Existing database found — will be preserved"
-    fi
-    if [ -d "$INSTALL_DIR/backups" ] && [ "$(ls -A "$INSTALL_DIR/backups" 2>/dev/null)" ]; then
-        EXISTING_BACKUPS="$INSTALL_DIR/backups"
-        warn "Existing backups found — will be preserved"
-    fi
-    if [ -d "$INSTALL_DIR/ssh_keys" ] && [ "$(ls -A "$INSTALL_DIR/ssh_keys" 2>/dev/null)" ]; then
-        EXISTING_SSH_KEYS="$INSTALL_DIR/ssh_keys"
-        warn "Existing SSH keys found — will be preserved"
-    fi
-    if [ -f "$INSTALL_DIR/.env" ]; then
-        EXISTING_ENV="$INSTALL_DIR/.env"
-        warn "Existing configuration found — will be preserved"
-    fi
-    
-    # Backup existing directory if it has content
-    if [ -d "$INSTALL_DIR" ] && [ "$(ls -A "$INSTALL_DIR" 2>/dev/null)" ]; then
-        BACKUP_DIR="${INSTALL_DIR}.bak.$(date +%s)"
-        warn "$INSTALL_DIR exists — backing up to $BACKUP_DIR"
-        mv "$INSTALL_DIR" "$BACKUP_DIR"
-    fi
-    
-    # Clone fresh
     info "Cloning repository..."
     git clone -b "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
     chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
     ok "Cloned to $INSTALL_DIR"
-    
-    # Restore existing data
-    cd "$INSTALL_DIR"
-    
-    if [ -n "$EXISTING_DB" ]; then
-        info "Restoring existing database..."
-        cp "$BACKUP_DIR/vibenetbackup.db" .
-        chown "$SERVICE_USER:$SERVICE_USER" vibenetbackup.db
-        chmod 600 vibenetbackup.db
-        ok "Database restored"
-    fi
-    
-    if [ -n "$EXISTING_BACKUPS" ]; then
-        info "Restoring existing backups..."
-        rm -rf backups  # Remove empty git-tracked backups dir
-        cp -r "$BACKUP_DIR/backups" .
-        chown -R "$SERVICE_USER:$SERVICE_USER" backups
-        ok "Backups restored"
-    fi
-    
-    if [ -n "$EXISTING_SSH_KEYS" ]; then
-        info "Restoring existing SSH keys..."
-        rm -rf ssh_keys
-        cp -r "$BACKUP_DIR/ssh_keys" .
-        chown -R "$SERVICE_USER:$SERVICE_USER" ssh_keys
-        chmod 700 ssh_keys
-        ok "SSH keys restored"
-    fi
-
-    if [ -n "$EXISTING_ENV" ]; then
-        info "Restoring existing configuration..."
-        cp "$BACKUP_DIR/.env" .
-        chown "$SERVICE_USER:$SERVICE_USER" .env
-        chmod 600 .env
-        ok "Configuration restored"
-    fi
 fi
+
+cd "$INSTALL_DIR"
+
+# ── Restore preserved data ────────────────────────────────────
+if [ -f "$SAFE_DIR/.env" ]; then
+    cp "$SAFE_DIR/.env" .env
+    chown "$SERVICE_USER:$SERVICE_USER" .env
+    chmod 600 .env
+    ok "Configuration restored (SECRET_KEY preserved)"
+fi
+if [ -f "$SAFE_DIR/vibenetbackup.db" ]; then
+    cp "$SAFE_DIR/vibenetbackup.db" vibenetbackup.db
+    chown "$SERVICE_USER:$SERVICE_USER" vibenetbackup.db
+    chmod 600 vibenetbackup.db
+    ok "Database restored"
+fi
+if [ -d "$SAFE_DIR/backups" ]; then
+    rm -rf backups
+    cp -r "$SAFE_DIR/backups" backups
+    chown -R "$SERVICE_USER:$SERVICE_USER" backups
+    ok "Backups restored"
+fi
+if [ -d "$SAFE_DIR/ssh_keys" ]; then
+    rm -rf ssh_keys
+    cp -r "$SAFE_DIR/ssh_keys" ssh_keys
+    chown -R "$SERVICE_USER:$SERVICE_USER" ssh_keys
+    chmod 700 ssh_keys
+    ok "SSH keys restored"
+fi
+
+rm -rf "$SAFE_DIR"
 
 cd "$INSTALL_DIR"
 
