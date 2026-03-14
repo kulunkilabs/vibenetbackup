@@ -160,12 +160,56 @@ async def edit_schedule(
 
 @router.post("/{schedule_id}/run")
 async def run_schedule_now(schedule_id: int, db: Session = Depends(get_db)):
-    """Manually trigger a schedule to run immediately."""
+    """Manually trigger a schedule to run immediately, regardless of enabled state."""
+    from app.modules.backup_service import run_backup_job
+    import asyncio
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     schedule = db.query(Schedule).get(schedule_id)
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found")
-    import asyncio
-    asyncio.create_task(_scheduled_backup_runner(schedule_id))
+
+    device_ids = schedule.device_ids or []
+    if not device_ids and schedule.device_group:
+        devices = db.query(Device).filter(
+            Device.group == schedule.device_group,
+            Device.enabled == True,
+        ).all()
+        device_ids = [d.id for d in devices]
+
+    if not device_ids:
+        return RedirectResponse(url="/jobs", status_code=303)
+
+    from datetime import datetime, timezone
+    schedule.last_run_at = datetime.now(timezone.utc)
+    db.commit()
+
+    # Capture values before the request context closes
+    job_name = schedule.name
+    destination_ids = schedule.destination_ids
+    engine_override = schedule.backup_engine
+    sid = schedule.id
+
+    async def _run():
+        from app.database import SessionLocal
+        run_db = SessionLocal()
+        try:
+            await run_backup_job(
+                run_db,
+                job_name=job_name,
+                device_ids=device_ids,
+                destination_ids=destination_ids,
+                engine_override=engine_override,
+                schedule_id=sid,
+            )
+        except Exception as e:
+            logger.error("Run Now failed for schedule %s: %s", sid, e)
+        finally:
+            run_db.close()
+
+    asyncio.create_task(_run())
     return RedirectResponse(url="/jobs", status_code=303)
 
 
