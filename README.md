@@ -2,7 +2,7 @@
 
 Network device configuration backup manager with multi-engine support, automated scheduling, and retention policies.
 
-**Version:** 1.1 | **License:** MIT
+**Version:** 1.2 | **License:** MIT
 
 <p align="center">
   <img src="docs/screenshots/v1.1/screensh_01.png" alt="VIBENetBackup Dashboard" width="900"/>
