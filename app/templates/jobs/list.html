@@ -40,9 +40,12 @@
                     <td>{{ s.last_run_at.strftime('%Y-%m-%d %H:%M') if s.last_run_at else 'Never' }}</td>
                     <td>{{ s.next_run_at.strftime('%Y-%m-%d %H:%M') if s.next_run_at else '-' }}</td>
                     <td>
-                        <a href="/jobs/{{ s.id }}/edit" class="btn btn-sm btn-outline-light"><i class="bi bi-pencil"></i></a>
+                        <form action="/jobs/{{ s.id }}/run" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-success" title="Run Now"><i class="bi bi-play-fill"></i></button>
+                        </form>
+                        <a href="/jobs/{{ s.id }}/edit" class="btn btn-sm btn-outline-light" title="Edit"><i class="bi bi-pencil"></i></a>
                         <form action="/jobs/{{ s.id }}/delete" method="post" class="d-inline" onsubmit="return confirm('Delete this schedule?')">
-                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
                         </form>
                     </td>
                 </tr>

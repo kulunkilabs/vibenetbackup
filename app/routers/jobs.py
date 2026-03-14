@@ -158,6 +158,17 @@ async def edit_schedule(
     return RedirectResponse(url="/jobs", status_code=303)
 
 
+@router.post("/{schedule_id}/run")
+async def run_schedule_now(schedule_id: int, db: Session = Depends(get_db)):
+    """Manually trigger a schedule to run immediately."""
+    schedule = db.query(Schedule).get(schedule_id)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    import asyncio
+    asyncio.create_task(_scheduled_backup_runner(schedule_id))
+    return RedirectResponse(url="/jobs", status_code=303)
+
+
 @router.post("/{schedule_id}/delete")
 async def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
     schedule = db.query(Schedule).get(schedule_id)
