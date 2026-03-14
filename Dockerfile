@@ -14,8 +14,10 @@ COPY . .
 
 RUN mkdir -p /app/data && \
     mkdir -p /app/backups && \
-    mkdir -p /app/ssh_keys && chmod 700 /app/ssh_keys
+    mkdir -p /app/ssh_keys && chmod 700 /app/ssh_keys && \
+    chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 5005
 
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5005"]
