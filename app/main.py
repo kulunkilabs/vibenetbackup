@@ -152,7 +152,7 @@ def _reload_schedules():
 app = FastAPI(
     title="VIBENetBackup",
     description="Network Device Configuration Backup Manager",
-    version="1.5.3",
+    version="1.5.4",
     lifespan=lifespan,
 )
 

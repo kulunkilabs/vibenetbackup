@@ -7,6 +7,7 @@ import zipfile
 
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import RedirectResponse, HTMLResponse, PlainTextResponse, StreamingResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -30,18 +31,40 @@ def _parse_archive_manifest(config_text: str) -> dict | None:
 
 
 @router.get("/")
-async def list_backups(request: Request, db: Session = Depends(get_db)):
+async def list_backups(
+    request: Request,
+    page: int = 1,
+    per_page: int = 25,
+    db: Session = Depends(get_db),
+):
+    if per_page not in (10, 25, 50):
+        per_page = 25
+    if page < 1:
+        page = 1
+
+    total = db.query(func.count(Backup.id)).scalar()
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    if page > total_pages:
+        page = total_pages
+
     backups = (
         db.query(Backup)
         .order_by(Backup.timestamp.desc())
-        .limit(100)
+        .offset((page - 1) * per_page)
+        .limit(per_page)
         .all()
     )
     device_map = {d.id: d.hostname for d in db.query(Device).all()}
     for b in backups:
         b.device_hostname = device_map.get(b.device_id, "Unknown")
     return request.app.state.templates.TemplateResponse(
-        request, "backups/list.html", {"backups": backups},
+        request, "backups/list.html", {
+            "backups": backups,
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": total_pages,
+        },
     )
 
 

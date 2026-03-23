@@ -224,10 +224,39 @@ async def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/history")
-async def job_history(request: Request, db: Session = Depends(get_db)):
-    runs = db.query(JobRun).order_by(JobRun.started_at.desc()).limit(50).all()
+async def job_history(
+    request: Request,
+    page: int = 1,
+    per_page: int = 25,
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy import func
+
+    if per_page not in (10, 25, 50):
+        per_page = 25
+    if page < 1:
+        page = 1
+
+    total = db.query(func.count(JobRun.id)).scalar()
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    if page > total_pages:
+        page = total_pages
+
+    runs = (
+        db.query(JobRun)
+        .order_by(JobRun.started_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
     return request.app.state.templates.TemplateResponse(
-        request, "jobs/history.html", {"runs": runs},
+        request, "jobs/history.html", {
+            "runs": runs,
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": total_pages,
+        },
     )
 
 
