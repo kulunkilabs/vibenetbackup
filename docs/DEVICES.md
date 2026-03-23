@@ -5,8 +5,8 @@
 | Vendor | Netmiko Type | Config Command |
 |--------|--------------|----------------|
 | Brocade/Ruckus ICX | `ruckus_fastiron` | `show running-config` |
-| Nokia SR OS Classic CLI (7750/7210/7450/7705) | `nokia_sros` | `admin display-config` |
-| Nokia SR OS MD-CLI (7750/7210/7450/7705) | `nokia_sros_md` | `admin show configuration` |
+| Nokia SR OS Classic CLI (7750/7210/7250 IXR/7450/7705) | `nokia_sros` | `admin display-config` |
+| Nokia SR OS MD-CLI (7750/7210/7250 IXR/7450/7705) | `nokia_sros_md` | `admin show configuration` |
 | Cisco IOS/XE/XR/NX-OS | `cisco_ios` / `cisco_xe` / `cisco_xr` / `cisco_nxos` | `show running-config` |
 | HP ProCurve / Aruba | `hp_procurve` | `show running-config` |
 | HP Comware | `hp_comware` | `display current-configuration` |
@@ -171,7 +171,7 @@ Collects Proxmox VE configuration files over SSH/SFTP and stores as a ZIP archiv
 
 ## Nokia SR OS Notes
 
-Nokia SR OS devices (7750, 7210, 7450, 7705 SAR) require extra connection timing. VIBENetBackup automatically applies `global_delay_factor=2` and extended timeouts.
+Nokia SR OS devices (7750, 7210, 7250 IXR, 7450, 7705 SAR) require extra connection timing. VIBENetBackup automatically applies `global_delay_factor=2` and extended timeouts.
 
 ### Classic CLI vs MD-CLI
 

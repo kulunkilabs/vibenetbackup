@@ -145,8 +145,8 @@ docker compose up -d --build
 To build a new image and push it to the container registry:
 
 ```bash
-# From the repo root — builds, tags :1.2 + :latest, and pushes
-bash docker/build-and-push.sh 1.2
+# From the repo root — builds, tags :1.3 + :latest, and pushes
+bash docker/build-and-push.sh 1.3
 ```
 
 The script will prompt for your registry credentials on first run. After it completes, `docker compose pull` in any Method 3 deployment will pick up the new image.

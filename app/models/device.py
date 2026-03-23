@@ -18,8 +18,8 @@ DEVICE_TYPES: dict[str, str] = {
     "cisco_xr":             "Cisco IOS-XR",
     "cisco_asa":            "Cisco ASA",
     # Nokia
-    "nokia_sros":           "Nokia SR OS Classic CLI (7750 / 7210 / 7450 / 7705)",
-    "nokia_sros_md":        "Nokia SR OS MD-CLI (7750 / 7210 / 7450 / 7705)",
+    "nokia_sros":           "Nokia SR OS Classic CLI (7750 / 7210 / 7250 IXR / 7450 / 7705)",
+    "nokia_sros_md":        "Nokia SR OS MD-CLI (7750 / 7210 / 7250 IXR / 7450 / 7705)",
     # Nuage / Nokia SD-WAN
     "linux":                "Nuage VSC (TiMOS/Linux)",
     # HP / Aruba

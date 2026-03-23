@@ -3,7 +3,7 @@ uvicorn[standard]
 sqlalchemy>=2.0
 alembic
 apscheduler>=3.10
-netmiko>=4.3
+netmiko>=4.4.0
 paramiko
 gitpython
 smbprotocol>=1.16
