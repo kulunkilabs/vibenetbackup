@@ -43,6 +43,8 @@ class NetmikoEngine(BackupEngine):
     def _connect_and_fetch(self, params: dict, commands: list[str]) -> str:
         conn = ConnectHandler(**params)
         try:
+            if "secret" in params:
+                conn.enable()
             parts = []
             for cmd in commands:
                 output = conn.send_command(cmd, read_timeout=120)
