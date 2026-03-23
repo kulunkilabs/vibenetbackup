@@ -7,7 +7,11 @@
     <div>
         {% if manifest %}
         <a href="/backups/{{ backup.id }}/download" class="btn btn-success">
+            {% if manifest.type == 'tgz' %}
+            <i class="bi bi-file-earmark-zip"></i> Download TGZ
+            {% else %}
             <i class="bi bi-file-zip"></i> Download ZIP
+            {% endif %}
         </a>
         {% elif backup.config_text %}
         <a href="/backups/{{ backup.id }}/download" class="btn btn-info">

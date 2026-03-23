@@ -2,6 +2,7 @@ import difflib
 import io
 import json
 import os
+import tarfile
 import zipfile
 
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
@@ -17,10 +18,11 @@ from app.modules.backup_service import run_backup_for_device
 router = APIRouter(prefix="/backups")
 
 
-def _parse_zip_manifest(config_text: str) -> dict | None:
+def _parse_archive_manifest(config_text: str) -> dict | None:
+    """Parse a JSON manifest for archive-based backups (zip or tgz)."""
     try:
         data = json.loads(config_text)
-        if isinstance(data, dict) and data.get("type") == "zip":
+        if isinstance(data, dict) and data.get("type") in ("zip", "tgz"):
             return data
     except (json.JSONDecodeError, TypeError):
         pass
@@ -90,7 +92,7 @@ async def backup_detail(backup_id: int, request: Request, db: Session = Depends(
         raise HTTPException(status_code=404, detail="Backup not found")
 
     device = db.query(Device).get(backup.device_id)
-    manifest = _parse_zip_manifest(backup.config_text) if backup.config_text else None
+    manifest = _parse_archive_manifest(backup.config_text) if backup.config_text else None
 
     diff_html = None
     prev_backup = None
@@ -107,7 +109,7 @@ async def backup_detail(backup_id: int, request: Request, db: Session = Depends(
             .first()
         )
         if prev_backup and prev_backup.config_text and backup.config_text:
-            if not _parse_zip_manifest(prev_backup.config_text):
+            if not _parse_archive_manifest(prev_backup.config_text):
                 diff_lines = difflib.unified_diff(
                     prev_backup.config_text.splitlines(keepends=True),
                     backup.config_text.splitlines(keepends=True),
@@ -140,15 +142,18 @@ async def download_backup(backup_id: int, db: Session = Depends(get_db)):
     hostname = device.hostname if device else "backup"
     ts = backup.timestamp.strftime("%Y%m%d_%H%M%S") if backup.timestamp else "unknown"
 
-    manifest = _parse_zip_manifest(backup.config_text) if backup.config_text else None
+    manifest = _parse_archive_manifest(backup.config_text) if backup.config_text else None
     if manifest:
-        zip_path = manifest.get("path")
-        if not zip_path or not os.path.exists(zip_path):
-            raise HTTPException(status_code=404, detail="ZIP file not found on disk")
-        filename = f"{hostname}_{ts}.zip"
+        archive_path = manifest.get("path")
+        if not archive_path or not os.path.exists(archive_path):
+            raise HTTPException(status_code=404, detail="Archive file not found on disk")
+        is_tgz = manifest.get("type") == "tgz"
+        ext = ".tar.gz" if is_tgz else ".zip"
+        media = "application/gzip" if is_tgz else "application/zip"
+        filename = f"{hostname}_{ts}{ext}"
         return StreamingResponse(
-            _iter_file(zip_path),
-            media_type="application/zip",
+            _iter_file(archive_path),
+            media_type=media,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
@@ -171,25 +176,19 @@ async def download_single_file(
     if not backup:
         raise HTTPException(status_code=404, detail="Backup not found")
 
-    manifest = _parse_zip_manifest(backup.config_text) if backup.config_text else None
+    manifest = _parse_archive_manifest(backup.config_text) if backup.config_text else None
     if not manifest:
-        raise HTTPException(status_code=400, detail="Not a ZIP backup")
+        raise HTTPException(status_code=400, detail="Not an archive backup")
 
-    zip_path = manifest.get("path")
-    if not zip_path or not os.path.exists(zip_path):
-        raise HTTPException(status_code=404, detail="ZIP file not found on disk")
+    archive_path = manifest.get("path")
+    if not archive_path or not os.path.exists(archive_path):
+        raise HTTPException(status_code=404, detail="Archive file not found on disk")
 
     safe_path = path.lstrip("/").replace("..", "")
     if not safe_path:
         raise HTTPException(status_code=400, detail="Invalid file path")
 
-    try:
-        with zipfile.ZipFile(zip_path, "r") as zf:
-            if safe_path not in zf.namelist():
-                raise HTTPException(status_code=404, detail=f"File not found in archive: {safe_path}")
-            content = zf.read(safe_path)
-    except zipfile.BadZipFile:
-        raise HTTPException(status_code=500, detail="Corrupted ZIP archive")
+    content = _read_from_archive(manifest, archive_path, safe_path)
 
     filename = os.path.basename(safe_path)
     text_extensions = {".conf", ".cfg", ".ini", ".xml", ".txt", ".yaml", ".yml", ".sh", ""}
@@ -217,26 +216,19 @@ async def view_single_file(
     if not backup:
         raise HTTPException(status_code=404, detail="Backup not found")
 
-    manifest = _parse_zip_manifest(backup.config_text) if backup.config_text else None
+    manifest = _parse_archive_manifest(backup.config_text) if backup.config_text else None
     if not manifest:
-        raise HTTPException(status_code=400, detail="Not a ZIP backup")
+        raise HTTPException(status_code=400, detail="Not an archive backup")
 
-    zip_path = manifest.get("path")
-    if not zip_path or not os.path.exists(zip_path):
-        raise HTTPException(status_code=404, detail="ZIP file not found on disk")
+    archive_path = manifest.get("path")
+    if not archive_path or not os.path.exists(archive_path):
+        raise HTTPException(status_code=404, detail="Archive file not found on disk")
 
     safe_path = path.lstrip("/").replace("..", "")
     if not safe_path:
         raise HTTPException(status_code=400, detail="Invalid file path")
 
-    try:
-        with zipfile.ZipFile(zip_path, "r") as zf:
-            if safe_path not in zf.namelist():
-                raise HTTPException(status_code=404, detail=f"File not found in archive: {safe_path}")
-            content = zf.read(safe_path)
-    except zipfile.BadZipFile:
-        raise HTTPException(status_code=500, detail="Corrupted ZIP archive")
-
+    content = _read_from_archive(manifest, archive_path, safe_path)
     return PlainTextResponse(content.decode("utf-8", errors="replace"))
 
 
@@ -248,7 +240,7 @@ async def delete_backup(backup_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Backup not found")
 
     # Delete the file on disk
-    manifest = _parse_zip_manifest(backup.config_text) if backup.config_text else None
+    manifest = _parse_archive_manifest(backup.config_text) if backup.config_text else None
     file_path = manifest.get("path") if manifest else backup.destination_path
     if file_path and os.path.exists(file_path):
         os.remove(file_path)
@@ -256,6 +248,33 @@ async def delete_backup(backup_id: int, db: Session = Depends(get_db)):
     db.delete(backup)
     db.commit()
     return RedirectResponse(url="/backups", status_code=303)
+
+
+def _read_from_archive(manifest: dict, archive_path: str, member_path: str) -> bytes:
+    """Read a single file from a zip or tar.gz archive."""
+    if manifest.get("type") == "tgz":
+        try:
+            with tarfile.open(archive_path, "r:gz") as tf:
+                try:
+                    member = tf.getmember(member_path)
+                except KeyError:
+                    raise HTTPException(status_code=404, detail=f"File not found in archive: {member_path}")
+                if member.issym():
+                    raise HTTPException(status_code=400, detail=f"Cannot view symlink directly: {member_path} -> {member.linkname}")
+                f = tf.extractfile(member)
+                if f is None:
+                    raise HTTPException(status_code=400, detail=f"Cannot extract: {member_path}")
+                return f.read()
+        except tarfile.TarError:
+            raise HTTPException(status_code=500, detail="Corrupted tar.gz archive")
+    else:
+        try:
+            with zipfile.ZipFile(archive_path, "r") as zf:
+                if member_path not in zf.namelist():
+                    raise HTTPException(status_code=404, detail=f"File not found in archive: {member_path}")
+                return zf.read(member_path)
+        except zipfile.BadZipFile:
+            raise HTTPException(status_code=500, detail="Corrupted ZIP archive")
 
 
 def _iter_file(path: str, chunk_size: int = 65536):

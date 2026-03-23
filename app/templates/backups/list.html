@@ -47,6 +47,11 @@
                         {% if b.config_text %}
                         <a href="/backups/{{ b.id }}/download" class="btn btn-sm btn-outline-info"><i class="bi bi-download"></i></a>
                         {% endif %}
+                        {% if b.status.value == 'failed' %}
+                        <form action="/backups/{{ b.id }}/delete" method="post" class="d-inline" onsubmit="return confirm('Delete this failed backup?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                        </form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% else %}

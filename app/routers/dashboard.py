@@ -5,6 +5,7 @@ from sqlalchemy import func
 from app.database import get_db
 from app.models.device import Device
 from app.models.backup import Backup, BackupStatus
+from app.models.destination import Destination
 from app.models.job import JobRun, JobStatus
 
 router = APIRouter()
@@ -44,6 +45,8 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         .scalar()
     )
 
+    destinations = db.query(Destination).order_by(Destination.name).all()
+
     return request.app.state.templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -54,5 +57,6 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "failed_count": failed_count,
             "recent_backups": recent_backups,
             "recent_jobs": recent_jobs,
+            "destinations": destinations,
         },
     )

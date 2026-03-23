@@ -83,8 +83,11 @@ async def _handle_binary_backup(
     destination_ids: list[int] | None,
     job_run,
 ) -> Backup:
-    """Save a binary (ZIP) backup to disk and store a JSON manifest in the DB."""
+    """Save a binary (tar.gz/zip) backup to disk and store a JSON manifest in the DB."""
     file_bytes, extension, file_list = binary_result
+
+    # Determine archive type from extension
+    archive_type = "tgz" if extension == ".tar.gz" else "zip"
 
     config_hash = hashlib.sha256(file_bytes).hexdigest()
 
@@ -115,7 +118,7 @@ async def _handle_binary_backup(
     saved_path = await _save_binary_local(device, file_bytes, extension, destination_ids, db)
 
     manifest = json.dumps({
-        "type": "zip",
+        "type": archive_type,
         "path": saved_path,
         "files": sorted(file_list),
         "file_count": len(file_list),

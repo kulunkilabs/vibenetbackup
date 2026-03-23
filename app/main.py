@@ -57,24 +57,60 @@ async def lifespan(app: FastAPI):
 
 
 def _ensure_default_destination():
-    """Create a default local destination if none exists."""
+    """Seed one destination per type so users can configure and enable them."""
     from app.database import SessionLocal
     from app.models.destination import Destination, DestinationType
 
+    defaults = [
+        {
+            "name": "Local Storage",
+            "dest_type": DestinationType.local,
+            "config_json": {"path": get_settings().BACKUP_DIR},
+            "enabled": True,
+        },
+        {
+            "name": "Git Repository",
+            "dest_type": DestinationType.git,
+            "config_json": {
+                "repo_path": "./repos/configs",
+                "remote_url": "",
+                "branch": "main",
+                "auth_method": "token",
+                "token": "",
+            },
+            "enabled": False,
+        },
+        {
+            "name": "SMB Share",
+            "dest_type": DestinationType.smb,
+            "config_json": {
+                "server": "",
+                "share": "",
+                "username": "",
+                "password": "",
+                "base_path": "backups",
+            },
+            "enabled": False,
+        },
+    ]
+
     db = SessionLocal()
     try:
-        existing = db.query(Destination).filter(Destination.dest_type == DestinationType.local).first()
-        if not existing:
-            dest = Destination(
-                name="Local Storage",
-                dest_type=DestinationType.local,
-                config_json={"path": get_settings().BACKUP_DIR},
-                retention_config={"daily": 14, "weekly": 6, "monthly": 12},
-                enabled=True,
-            )
-            db.add(dest)
-            db.commit()
-            logger.info("Created default local destination")
+        for dflt in defaults:
+            exists = db.query(Destination).filter(
+                Destination.dest_type == dflt["dest_type"]
+            ).first()
+            if not exists:
+                dest = Destination(
+                    name=dflt["name"],
+                    dest_type=dflt["dest_type"],
+                    config_json=dflt["config_json"],
+                    retention_config={"daily": 14, "weekly": 6, "monthly": 12},
+                    enabled=dflt["enabled"],
+                )
+                db.add(dest)
+                logger.info("Created default destination: %s", dflt["name"])
+        db.commit()
     finally:
         db.close()
 
@@ -116,7 +152,7 @@ def _reload_schedules():
 app = FastAPI(
     title="VIBENetBackup",
     description="Network Device Configuration Backup Manager",
-    version="1.5.1",
+    version="1.5.2",
     lifespan=lifespan,
 )
 

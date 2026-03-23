@@ -57,6 +57,7 @@
                                 <th>Device</th>
                                 <th>Time</th>
                                 <th>Status</th>
+                                <th>Dest</th>
                                 <th>Size</th>
                             </tr>
                         </thead>
@@ -76,10 +77,11 @@
                                     <span class="badge bg-warning">{{ b.status.value }}</span>
                                     {% endif %}
                                 </td>
+                                <td><span class="badge bg-dark">{{ b.destination_type or '-' }}</span></td>
                                 <td>{{ (b.file_size / 1024)|round(1) if b.file_size else '-' }} KB</td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="4" class="text-center text-muted">No backups yet</td></tr>
+                            <tr><td colspan="5" class="text-center text-muted">No backups yet</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -118,6 +120,53 @@
                         </tr>
                         {% else %}
                         <tr><td colspan="3" class="text-center text-muted">No jobs yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mt-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-folder2-open"></i> Destinations</span>
+                <a href="/destinations" class="btn btn-sm btn-outline-light">Manage</a>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Retention</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dest in destinations %}
+                        <tr>
+                            <td><a href="/destinations/{{ dest.id }}/edit">{{ dest.name }}</a></td>
+                            <td><span class="badge bg-secondary">{{ dest.dest_type.value }}</span></td>
+                            <td>
+                                {% if dest.enabled %}
+                                <span class="badge bg-success">Enabled</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">Disabled</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if dest.retention_config %}
+                                D:{{ dest.retention_config.get('daily', '-') }} W:{{ dest.retention_config.get('weekly', '-') }} M:{{ dest.retention_config.get('monthly', '-') }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center text-muted">No destinations configured</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>

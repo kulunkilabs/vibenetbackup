@@ -1,7 +1,8 @@
 import asyncio
 import io
 import logging
-import zipfile
+import stat as stat_mod
+import tarfile
 
 import paramiko
 
@@ -133,31 +134,35 @@ def _ssh_connect(device: Device, credential: Credential) -> paramiko.SSHClient:
     return client
 
 
-def _collect_zip(sftp: paramiko.SFTPClient, paths: list[str]) -> tuple[bytes, list[str]]:
-    """Walk each path over SFTP and pack everything into an in-memory ZIP."""
+def _collect_tgz(sftp: paramiko.SFTPClient, paths: list[str]) -> tuple[bytes, list[str]]:
+    """Walk each path over SFTP and pack everything into an in-memory tar.gz.
+
+    Preserves symbolic links as symlinks inside the archive.
+    """
     buf = io.BytesIO()
     collected: list[str] = []
 
-    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+    with tarfile.open(fileobj=buf, mode="w:gz") as tf:
         for remote_path in paths:
             try:
-                stat = sftp.stat(remote_path)
+                attr = sftp.lstat(remote_path)
             except FileNotFoundError:
                 logger.debug("Proxmox SFTP: not found, skipping: %s", remote_path)
                 continue
 
-            import stat as stat_mod
-            if stat_mod.S_ISDIR(stat.st_mode):
-                _add_dir(sftp, zf, remote_path, collected)
+            if stat_mod.S_ISDIR(attr.st_mode):
+                _add_dir_tar(sftp, tf, remote_path, collected)
+            elif stat_mod.S_ISLNK(attr.st_mode):
+                _add_symlink_tar(sftp, tf, remote_path, collected)
             else:
-                _add_file(sftp, zf, remote_path, collected)
+                _add_file_tar(sftp, tf, remote_path, attr, collected)
 
     return buf.getvalue(), collected
 
 
-def _add_dir(
+def _add_dir_tar(
     sftp: paramiko.SFTPClient,
-    zf: zipfile.ZipFile,
+    tf: tarfile.TarFile,
     remote_dir: str,
     collected: list[str],
 ) -> None:
@@ -167,38 +172,65 @@ def _add_dir(
         logger.warning("Proxmox SFTP: cannot list %s: %s", remote_dir, e)
         return
 
-    import stat as stat_mod
     for entry in entries:
         remote_path = f"{remote_dir}/{entry.filename}"
         if stat_mod.S_ISDIR(entry.st_mode):
-            _add_dir(sftp, zf, remote_path, collected)
+            _add_dir_tar(sftp, tf, remote_path, collected)
+        elif stat_mod.S_ISLNK(entry.st_mode):
+            _add_symlink_tar(sftp, tf, remote_path, collected)
         else:
-            _add_file(sftp, zf, remote_path, collected)
+            _add_file_tar(sftp, tf, remote_path, entry, collected)
 
 
-def _add_file(
+def _add_symlink_tar(
     sftp: paramiko.SFTPClient,
-    zf: zipfile.ZipFile,
+    tf: tarfile.TarFile,
     remote_path: str,
+    collected: list[str],
+) -> None:
+    try:
+        link_target = sftp.readlink(remote_path)
+        arc_name = remote_path.lstrip("/")
+        info = tarfile.TarInfo(name=arc_name)
+        info.type = tarfile.SYMTYPE
+        info.linkname = link_target
+        tf.addfile(info)
+        collected.append(arc_name)
+        logger.debug("Proxmox SFTP: added symlink %s -> %s", remote_path, link_target)
+    except Exception as e:
+        logger.warning("Proxmox SFTP: cannot read symlink %s: %s", remote_path, e)
+
+
+def _add_file_tar(
+    sftp: paramiko.SFTPClient,
+    tf: tarfile.TarFile,
+    remote_path: str,
+    attr,
     collected: list[str],
 ) -> None:
     try:
         file_buf = io.BytesIO()
         sftp.getfo(remote_path, file_buf)
+        file_buf.seek(0)
         arc_name = remote_path.lstrip("/")
-        zf.writestr(arc_name, file_buf.getvalue())
+        info = tarfile.TarInfo(name=arc_name)
+        info.size = file_buf.getbuffer().nbytes
+        info.mode = attr.st_mode & 0o777
+        info.uid = attr.st_uid if attr.st_uid else 0
+        info.gid = attr.st_gid if attr.st_gid else 0
+        tf.addfile(info, file_buf)
         collected.append(arc_name)
-        logger.debug("Proxmox SFTP: added %s (%d bytes)", remote_path, file_buf.tell())
+        logger.debug("Proxmox SFTP: added %s (%d bytes)", remote_path, info.size)
     except Exception as e:
         logger.warning("Proxmox SFTP: cannot fetch %s: %s", remote_path, e)
 
 
-def _fetch_zip(device: Device, credential: Credential) -> tuple[bytes, list[str]]:
+def _fetch_tgz(device: Device, credential: Credential) -> tuple[bytes, list[str]]:
     client = _ssh_connect(device, credential)
     try:
         sftp = client.open_sftp()
         try:
-            return _collect_zip(sftp, PROXMOX_BACKUP_PATHS)
+            return _collect_tgz(sftp, PROXMOX_BACKUP_PATHS)
         finally:
             sftp.close()
     finally:
@@ -216,8 +248,8 @@ class ProxmoxEngine(BackupEngine):
     Backup engine for Proxmox VE nodes.
 
     Connects via SSH/SFTP, downloads all critical configuration paths
-    and packages them as a ZIP archive. Each file is individually accessible
-    from the dashboard and can be downloaded separately.
+    and packages them as a tar.gz archive. Symbolic links are preserved.
+    Each file is individually accessible from the dashboard.
     """
 
     async def fetch_binary(
@@ -228,12 +260,12 @@ class ProxmoxEngine(BackupEngine):
             device.hostname, device.ip_address,
         )
         try:
-            zip_bytes, file_list = await asyncio.to_thread(_fetch_zip, device, credential)
+            tgz_bytes, file_list = await asyncio.to_thread(_fetch_tgz, device, credential)
             logger.info(
-                "Proxmox: collected %d files from %s, ZIP size %d bytes",
-                len(file_list), device.hostname, len(zip_bytes),
+                "Proxmox: collected %d files from %s, TGZ size %d bytes",
+                len(file_list), device.hostname, len(tgz_bytes),
             )
-            return zip_bytes, ".zip", file_list
+            return tgz_bytes, ".tar.gz", file_list
         except paramiko.AuthenticationException:
             raise PermissionError(
                 f"Proxmox SSH auth failed for {device.hostname} ({device.ip_address})"
