@@ -231,6 +231,24 @@ async def job_history(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@router.post("/history/{run_id}/delete")
+async def delete_job_run(run_id: int, request: Request, db: Session = Depends(get_db)):
+    """Delete a job run record and its associated backups."""
+    from app.models.backup import Backup
+
+    run = db.query(JobRun).get(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Job run not found")
+    db.query(Backup).filter(Backup.job_run_id == run_id).delete()
+    db.delete(run)
+    db.commit()
+
+    referer = request.headers.get("referer", "")
+    if "/jobs/history" in referer:
+        return RedirectResponse(url="/jobs/history", status_code=303)
+    return RedirectResponse(url="/", status_code=303)
+
+
 @router.get("/history/{run_id}")
 async def job_run_detail(run_id: int, request: Request, db: Session = Depends(get_db)):
     run = db.query(JobRun).get(run_id)

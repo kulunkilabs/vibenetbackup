@@ -17,6 +17,7 @@
                     <th>Success</th>
                     <th>Failed</th>
                     <th>Total</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -40,9 +41,14 @@
                     <td class="text-success">{{ run.devices_success }}</td>
                     <td class="text-danger">{{ run.devices_failed }}</td>
                     <td>{{ run.devices_total }}</td>
+                    <td>
+                        <form action="/jobs/history/{{ run.id }}/delete" method="post" class="d-inline" onsubmit="return confirm('Delete this job run and its backups?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="8" class="text-center text-muted py-4">No job runs yet</td></tr>
+                <tr><td colspan="9" class="text-center text-muted py-4">No job runs yet</td></tr>
                 {% endfor %}
             </tbody>
         </table>
