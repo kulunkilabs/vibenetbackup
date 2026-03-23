@@ -35,6 +35,8 @@ async def list_backups(
     request: Request,
     page: int = 1,
     per_page: int = 25,
+    q: str = "",
+    status: str = "",
     db: Session = Depends(get_db),
 ):
     if per_page not in (10, 25, 50):
@@ -42,19 +44,34 @@ async def list_backups(
     if page < 1:
         page = 1
 
-    total = db.query(func.count(Backup.id)).scalar()
+    query = db.query(Backup)
+
+    # Filter by status
+    if status and status in ("success", "failed", "unchanged"):
+        query = query.filter(Backup.status == BackupStatus(status))
+
+    # Search by device hostname
+    device_map = {d.id: d.hostname for d in db.query(Device).all()}
+    if q:
+        q_lower = q.strip().lower()
+        matching_ids = [did for did, name in device_map.items() if q_lower in name.lower()]
+        if matching_ids:
+            query = query.filter(Backup.device_id.in_(matching_ids))
+        else:
+            query = query.filter(Backup.id == -1)  # no results
+
+    total = query.count()
     total_pages = max(1, (total + per_page - 1) // per_page)
     if page > total_pages:
         page = total_pages
 
     backups = (
-        db.query(Backup)
+        query
         .order_by(Backup.timestamp.desc())
         .offset((page - 1) * per_page)
         .limit(per_page)
         .all()
     )
-    device_map = {d.id: d.hostname for d in db.query(Device).all()}
     for b in backups:
         b.device_hostname = device_map.get(b.device_id, "Unknown")
     return request.app.state.templates.TemplateResponse(
@@ -64,8 +81,35 @@ async def list_backups(
             "per_page": per_page,
             "total": total,
             "total_pages": total_pages,
+            "q": q,
+            "status": status,
         },
     )
+
+
+@router.post("/batch-delete")
+async def batch_delete_backups(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Delete multiple backup records and their files on disk."""
+    form = await request.form()
+    backup_ids = form.getlist("backup_ids")
+    if not backup_ids:
+        return RedirectResponse(url="/backups", status_code=303)
+
+    for bid in backup_ids:
+        backup = db.query(Backup).get(int(bid))
+        if not backup:
+            continue
+        manifest = _parse_archive_manifest(backup.config_text) if backup.config_text else None
+        file_path = manifest.get("path") if manifest else backup.destination_path
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+        db.delete(backup)
+
+    db.commit()
+    return RedirectResponse(url="/backups", status_code=303)
 
 
 @router.get("/trigger")

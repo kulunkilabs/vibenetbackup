@@ -4,22 +4,63 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2><i class="bi bi-archive"></i> Backups <small class="fs-6 text-muted">({{ total }})</small></h2>
-    <div class="d-flex align-items-center gap-2">
-        <label class="text-muted small mb-0">Show</label>
-        <select class="form-select form-select-sm" style="width:auto" onchange="window.location='/backups?per_page='+this.value">
-            {% for opt in [10, 25, 50] %}
-            <option value="{{ opt }}" {{ 'selected' if per_page == opt else '' }}>{{ opt }}</option>
-            {% endfor %}
-        </select>
-        <a href="/backups/trigger" class="btn btn-primary btn-sm"><i class="bi bi-download"></i> Trigger Backup</a>
+    <a href="/backups/trigger" class="btn btn-primary btn-sm"><i class="bi bi-download"></i> Trigger Backup</a>
+</div>
+
+<!-- Search / Filter bar -->
+<div class="card mb-3">
+    <div class="card-body py-2 px-3">
+        <form method="get" action="/backups" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control" placeholder="Search device..." value="{{ q }}">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">All statuses</option>
+                    <option value="success" {{ 'selected' if status == 'success' else '' }}>Success</option>
+                    <option value="failed" {{ 'selected' if status == 'failed' else '' }}>Failed</option>
+                    <option value="unchanged" {{ 'selected' if status == 'unchanged' else '' }}>Unchanged</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="per_page" class="form-select form-select-sm">
+                    {% for opt in [10, 25, 50] %}
+                    <option value="{{ opt }}" {{ 'selected' if per_page == opt else '' }}>{{ opt }} / page</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-outline-light"><i class="bi bi-funnel"></i> Filter</button>
+            </div>
+            {% if q or status %}
+            <div class="col-auto">
+                <a href="/backups" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i> Clear</a>
+            </div>
+            {% endif %}
+        </form>
     </div>
 </div>
 
+<!-- Batch actions bar (hidden until selection) -->
+<div id="batch-bar" class="alert alert-dark d-none d-flex align-items-center justify-content-between py-2 mb-2">
+    <span><strong id="selected-count">0</strong> backup(s) selected</span>
+    <div>
+        <button type="button" id="btn-select-all-page" class="btn btn-sm btn-outline-light me-1">Select all on page</button>
+        <button type="button" id="btn-deselect-all" class="btn btn-sm btn-outline-secondary me-2">Deselect all</button>
+        <button type="button" id="btn-batch-delete" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i> Delete selected</button>
+    </div>
+</div>
+
+<form id="batch-form" method="post" action="/backups/batch-delete">
 <div class="card">
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
+                    <th style="width:36px"><input type="checkbox" id="check-all" class="form-check-input"></th>
                     <th>ID</th>
                     <th>Device</th>
                     <th>Timestamp</th>
@@ -33,6 +74,7 @@
             <tbody>
                 {% for b in backups %}
                 <tr>
+                    <td><input type="checkbox" name="backup_ids" value="{{ b.id }}" class="form-check-input row-check"></td>
                     <td>{{ b.id }}</td>
                     <td><a href="/devices/{{ b.device_id }}">{{ b.device_hostname }}</a></td>
                     <td>{{ b.timestamp.strftime('%Y-%m-%d %H:%M:%S') if b.timestamp else '-' }}</td>
@@ -51,51 +93,98 @@
                     <td><code>{{ b.config_hash[:12] if b.config_hash else '-' }}</code></td>
                     <td>{{ b.destination_type or '-' }}</td>
                     <td>
-                        <a href="/backups/{{ b.id }}" class="btn btn-sm btn-outline-light"><i class="bi bi-eye"></i></a>
+                        <a href="/backups/{{ b.id }}" class="btn btn-sm btn-outline-light py-0 px-1"><i class="bi bi-eye"></i></a>
                         {% if b.config_text %}
-                        <a href="/backups/{{ b.id }}/download" class="btn btn-sm btn-outline-info"><i class="bi bi-download"></i></a>
-                        {% endif %}
-                        {% if b.status.value == 'failed' %}
-                        <form action="/backups/{{ b.id }}/delete" method="post" class="d-inline" onsubmit="return confirm('Delete this failed backup?')">
-                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                        </form>
+                        <a href="/backups/{{ b.id }}/download" class="btn btn-sm btn-outline-info py-0 px-1"><i class="bi bi-download"></i></a>
                         {% endif %}
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="8" class="text-center text-muted py-4">No backups yet</td></tr>
+                <tr><td colspan="9" class="text-center text-muted py-4">No backups found</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+</form>
 
 {% if total_pages > 1 %}
 <nav class="mt-3 d-flex justify-content-between align-items-center">
     <span class="text-muted small">Page {{ page }} of {{ total_pages }} ({{ total }} backups)</span>
     <ul class="pagination pagination-sm mb-0">
+        {% set qs = "per_page=" ~ per_page ~ ("&q=" ~ q if q else "") ~ ("&status=" ~ status if status else "") %}
         <li class="page-item {{ 'disabled' if page <= 1 else '' }}">
-            <a class="page-link" href="/backups?page=1&per_page={{ per_page }}">&laquo;</a>
+            <a class="page-link" href="/backups?page=1&{{ qs }}">&laquo;</a>
         </li>
         <li class="page-item {{ 'disabled' if page <= 1 else '' }}">
-            <a class="page-link" href="/backups?page={{ page - 1 }}&per_page={{ per_page }}">&lsaquo;</a>
+            <a class="page-link" href="/backups?page={{ page - 1 }}&{{ qs }}">&lsaquo;</a>
         </li>
         {% for p in range(1, total_pages + 1) %}
             {% if p == page or p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
         <li class="page-item {{ 'active' if p == page else '' }}">
-            <a class="page-link" href="/backups?page={{ p }}&per_page={{ per_page }}">{{ p }}</a>
+            <a class="page-link" href="/backups?page={{ p }}&{{ qs }}">{{ p }}</a>
         </li>
             {% elif p == page - 3 or p == page + 3 %}
         <li class="page-item disabled"><span class="page-link">...</span></li>
             {% endif %}
         {% endfor %}
         <li class="page-item {{ 'disabled' if page >= total_pages else '' }}">
-            <a class="page-link" href="/backups?page={{ page + 1 }}&per_page={{ per_page }}">&rsaquo;</a>
+            <a class="page-link" href="/backups?page={{ page + 1 }}&{{ qs }}">&rsaquo;</a>
         </li>
         <li class="page-item {{ 'disabled' if page >= total_pages else '' }}">
-            <a class="page-link" href="/backups?page={{ total_pages }}&per_page={{ per_page }}">&raquo;</a>
+            <a class="page-link" href="/backups?page={{ total_pages }}&{{ qs }}">&raquo;</a>
         </li>
     </ul>
 </nav>
 {% endif %}
+
+<script>
+(function() {
+    const checkAll = document.getElementById('check-all');
+    const rowChecks = document.querySelectorAll('.row-check');
+    const batchBar = document.getElementById('batch-bar');
+    const selectedCount = document.getElementById('selected-count');
+    const batchForm = document.getElementById('batch-form');
+
+    function updateBar() {
+        const checked = document.querySelectorAll('.row-check:checked');
+        const count = checked.length;
+        selectedCount.textContent = count;
+        if (count > 0) {
+            batchBar.classList.remove('d-none');
+        } else {
+            batchBar.classList.add('d-none');
+        }
+        checkAll.checked = rowChecks.length > 0 && count === rowChecks.length;
+        checkAll.indeterminate = count > 0 && count < rowChecks.length;
+    }
+
+    checkAll.addEventListener('change', function() {
+        rowChecks.forEach(function(cb) { cb.checked = checkAll.checked; });
+        updateBar();
+    });
+
+    rowChecks.forEach(function(cb) {
+        cb.addEventListener('change', updateBar);
+    });
+
+    document.getElementById('btn-select-all-page').addEventListener('click', function() {
+        rowChecks.forEach(function(cb) { cb.checked = true; });
+        updateBar();
+    });
+
+    document.getElementById('btn-deselect-all').addEventListener('click', function() {
+        rowChecks.forEach(function(cb) { cb.checked = false; });
+        checkAll.checked = false;
+        updateBar();
+    });
+
+    document.getElementById('btn-batch-delete').addEventListener('click', function() {
+        const count = document.querySelectorAll('.row-check:checked').length;
+        if (count > 0 && confirm('Delete ' + count + ' backup(s)? This will also remove files from disk.')) {
+            batchForm.submit();
+        }
+    });
+})();
+</script>
 {% endblock %}

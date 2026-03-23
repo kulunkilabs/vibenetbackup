@@ -1,5 +1,5 @@
 # VIBENetBackup — Build from Source
-# Version: 1.5.4
+# Version: 1.5.5
 #
 # Builds the Docker image locally from the repository Dockerfile.
 # Requires cloning the repo first.

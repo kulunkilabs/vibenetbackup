@@ -2,7 +2,7 @@
 
 Network device configuration backup manager with multi-engine support, automated scheduling, and retention policies.
 
-**Version:** 1.5.4 | **License:** MIT
+**Version:** 1.5.5 | **License:** MIT
 
 <p align="center">
   <img src="docs/screenshots/v1.1/screensh_01.png" alt="VIBENetBackup Dashboard" width="900"/>
@@ -102,6 +102,12 @@ docker compose up -d
 
 ## Changelog
 
+### v1.5.5 (2026-03-23)
+- Backups page: search by device name, filter by status
+- Checkbox selection with batch delete (select all / individual)
+- Batch action bar with count, select all on page, deselect, delete
+- Pagination preserves search and filter state
+
 ### v1.5.4 (2026-03-23)
 - Pagination on Backups and Job History pages (10/25/50 per page)
 - Delete failed job runs from dashboard and history
@@ -130,6 +136,12 @@ If you find VIBENetBackup useful, consider buying me a coffee:
 <a href="https://ko-fi.com/kulunkilabs" target="_blank">
   <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Buy Me a Coffee at ko-fi.com" />
 </a>
+
+---
+
+## Acknowledgments
+
+Special thanks to **Peter B.** for his dedication as our lead tester — his thorough testing across diverse network environments and detailed feedback have been instrumental in shaping the reliability and quality of VIBENetBackup.
 
 ---
 
