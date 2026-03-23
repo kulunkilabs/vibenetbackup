@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # VIBENetBackup Uninstaller
 # Usage: curl -fsSL https://raw.githubusercontent.com/kulunkilabs/vibenetbackup/main/uninstall.sh | sudo bash
-# Version: 1.4
+# Version: 1.5
 set -euo pipefail
 
-VERSION="1.4"
+VERSION="1.5"
 
 # ── Configuration ──────────────────────────────────────────────
 INSTALL_DIR="${VIBENET_DIR:-/opt/vibenetbackup}"

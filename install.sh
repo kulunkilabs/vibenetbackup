@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # VIBENetBackup Installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/kulunkilabs/vibenetbackup/main/install.sh | sudo bash
-# Version: 1.4
+# Version: 1.5
 set -euo pipefail
 
-VERSION="1.4"
+VERSION="1.5"
 
 # ── Configuration ──────────────────────────────────────────────
 REPO_URL="${VIBENET_REPO:-https://github.com/kulunkilabs/vibenetbackup.git}"
