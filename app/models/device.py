@@ -153,8 +153,9 @@ def oxidized_model_to_device_type(model: str) -> str:
 # Maps our device_type to Netmiko's device_type string.
 # Some devices (like pfSense/OPNsense) need to use generic SSH types.
 NETMIKO_DEVICE_TYPE_MAP: dict[str, str] = {
-    "pfsense":      "linux",  # FreeBSD - use generic Linux/SSH type
-    "opnsense":     "linux",  # FreeBSD - use generic Linux/SSH type
+    "nokia_sros_md": "nokia_sros",  # MD-CLI uses same SSH driver, different commands
+    "pfsense":       "linux",       # FreeBSD - use generic Linux/SSH type
+    "opnsense":      "linux",       # FreeBSD - use generic Linux/SSH type
 }
 
 
