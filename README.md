@@ -2,7 +2,7 @@
 
 Network device configuration backup manager with multi-engine support, automated scheduling, and retention policies.
 
-**Version:** 1.5 | **License:** MIT
+**Version:** 1.5.4 | **License:** MIT
 
 <p align="center">
   <img src="docs/screenshots/v1.1/screensh_01.png" alt="VIBENetBackup Dashboard" width="900"/>
@@ -83,7 +83,7 @@ docker compose up -d
 | **HP/Aruba** | ProCurve, Comware |
 | **Dell** | OS6, OS9, OS10, Force10 |
 | **pfSense/OPNsense** | API backup |
-| **Proxmox VE** | SSH/SFTP (90+ config files as ZIP) |
+| **Proxmox VE** | SSH/SFTP (90+ config files as tar.gz, symlinks preserved) |
 
 > See [docs/DEVICES.md](docs/DEVICES.md) for setup guides, commands, and troubleshooting per vendor.
 
@@ -97,6 +97,29 @@ docker compose up -d
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Environment variables, secrets, CORS, security, HTTPS |
 | [docs/DEVICES.md](docs/DEVICES.md) | Supported devices, Proxmox VE, Nokia SR OS, pfSense/OPNsense, Oxidized |
 | [docs/API.md](docs/API.md) | REST API reference with curl examples |
+
+---
+
+## Changelog
+
+### v1.5.4 (2026-03-23)
+- Pagination on Backups and Job History pages (10/25/50 per page)
+- Delete failed job runs from dashboard and history
+- Delete failed backups from backup list
+
+### v1.5.2 (2026-03-23)
+- Proxmox: switched from ZIP to tar.gz to preserve symbolic links
+- Seed default Git and SMB destinations (disabled) on startup
+- Destinations panel on dashboard showing all configured destinations
+- Destination column in dashboard recent backups
+- Archive viewer supports both zip and tgz formats
+
+### v1.5.1 (2026-03-23)
+- Fix Cisco enable mode: call `conn.enable()` before running commands when enable secret is configured
+
+### v1.5 (2026-03-23)
+- Fix Nokia SR OS: map `nokia_sros_md` to `nokia_sros` netmiko driver
+- Protect credentials across upgrades: persist and guard `SECRET_KEY`
 
 ---
 
