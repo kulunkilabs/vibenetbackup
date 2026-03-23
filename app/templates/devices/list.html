@@ -16,6 +16,7 @@
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
+                    <th style="width: 40px;"><input type="checkbox" class="form-check-input" id="select-all"></th>
                     <th>Hostname</th>
                     <th>IP Address</th>
                     <th>Type</th>
@@ -28,6 +29,7 @@
             <tbody>
                 {% for device in devices %}
                 <tr>
+                    <td><input type="checkbox" class="form-check-input device-check" value="{{ device.id }}"></td>
                     <td><a href="/devices/{{ device.id }}">{{ device.hostname }}</a></td>
                     <td><code>{{ device.ip_address }}</code></td>
                     <td><span class="badge bg-secondary">{{ device_type_labels.get(device.device_type, device.device_type) }}</span></td>
@@ -55,10 +57,70 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="7" class="text-center text-muted py-4">No devices yet. <a href="/devices/add">Add one</a>.</td></tr>
+                <tr><td colspan="8" class="text-center text-muted py-4">No devices yet. <a href="/devices/add">Add one</a>.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+
+<!-- Batch edit bar -->
+<div id="batch-bar" class="fixed-bottom bg-dark border-top border-secondary p-3" style="display: none;">
+    <form method="post" action="/devices/batch-edit" class="container-fluid d-flex align-items-center gap-3 flex-wrap">
+        <input type="hidden" name="device_ids" id="batch-device-ids">
+        <strong><span id="batch-count">0</span> selected</strong>
+        <select name="credential_id" class="form-select form-select-sm" style="width: auto;">
+            <option value="">-- Credential: no change --</option>
+            <option value="__none__">-- Clear credential --</option>
+            {% for c in credentials %}
+            <option value="{{ c.id }}">{{ c.name }} ({{ c.username }})</option>
+            {% endfor %}
+        </select>
+        <select name="group" class="form-select form-select-sm" style="width: auto;">
+            <option value="">-- Group: no change --</option>
+            {% for g in groups %}
+            <option value="{{ g.name }}">{{ g.name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-pencil-square"></i> Apply</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearSelection()">Cancel</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAll = document.getElementById('select-all');
+    const batchBar = document.getElementById('batch-bar');
+    const batchCount = document.getElementById('batch-count');
+    const batchIds = document.getElementById('batch-device-ids');
+
+    function updateBatchBar() {
+        const checked = document.querySelectorAll('.device-check:checked');
+        const all = document.querySelectorAll('.device-check');
+        const ids = Array.from(checked).map(cb => cb.value);
+        batchIds.value = ids.join(',');
+        batchCount.textContent = ids.length;
+        batchBar.style.display = ids.length > 0 ? '' : 'none';
+        selectAll.indeterminate = ids.length > 0 && ids.length < all.length;
+        selectAll.checked = ids.length === all.length && all.length > 0;
+    }
+
+    selectAll.addEventListener('change', function() {
+        document.querySelectorAll('.device-check').forEach(cb => cb.checked = this.checked);
+        updateBatchBar();
+    });
+
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('device-check')) updateBatchBar();
+    });
+
+    window.clearSelection = function() {
+        document.querySelectorAll('.device-check').forEach(cb => cb.checked = false);
+        selectAll.checked = false;
+        updateBatchBar();
+    };
+});
+</script>
 {% endblock %}

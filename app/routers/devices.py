@@ -32,10 +32,41 @@ ENGINE_TYPES = {
 @router.get("/")
 async def list_devices(request: Request, db: Session = Depends(get_db)):
     devices = db.query(Device).order_by(Device.hostname).all()
+    credentials = db.query(Credential).order_by(Credential.name).all()
+    groups = db.query(Group).order_by(Group.name).all()
     return request.app.state.templates.TemplateResponse(
         "devices/list.html",
-        {"request": request, "devices": devices, "device_type_labels": DEVICE_TYPES},
+        {
+            "request": request,
+            "devices": devices,
+            "device_type_labels": DEVICE_TYPES,
+            "credentials": credentials,
+            "groups": groups,
+        },
     )
+
+
+@router.post("/batch-edit")
+async def batch_edit_devices(
+    device_ids: str = Form(""),
+    credential_id: str = Form(""),
+    group: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    ids = [int(x) for x in device_ids.split(",") if x.strip().isdigit()]
+    if not ids:
+        return RedirectResponse(url="/devices", status_code=303)
+
+    devices = db.query(Device).filter(Device.id.in_(ids)).all()
+    for device in devices:
+        if credential_id == "__none__":
+            device.credential_id = None
+        elif credential_id:
+            device.credential_id = int(credential_id)
+        if group:
+            device.group = group
+    db.commit()
+    return RedirectResponse(url="/devices", status_code=303)
 
 
 @router.get("/add")
