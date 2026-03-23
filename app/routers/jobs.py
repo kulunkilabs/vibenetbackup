@@ -55,8 +55,7 @@ async def list_schedules(request: Request, db: Session = Depends(get_db)):
     for s in schedules:
         s.next_run_at = get_next_run_time(s.id)
     return request.app.state.templates.TemplateResponse(
-        "jobs/list.html",
-        {"request": request, "schedules": schedules},
+        request, "jobs/list.html", {"schedules": schedules},
     )
 
 
@@ -66,9 +65,9 @@ async def add_schedule_form(request: Request, db: Session = Depends(get_db)):
     destinations = db.query(Destination).filter(Destination.enabled == True).all()
     groups = list({d.group for d in db.query(Device).all() if d.group})
     return request.app.state.templates.TemplateResponse(
+        request,
         "jobs/form.html",
         {
-            "request": request,
             "schedule": None,
             "devices": devices,
             "destinations": destinations,
@@ -114,9 +113,9 @@ async def edit_schedule_form(schedule_id: int, request: Request, db: Session = D
     destinations = db.query(Destination).filter(Destination.enabled == True).all()
     groups = list({d.group for d in db.query(Device).all() if d.group})
     return request.app.state.templates.TemplateResponse(
+        request,
         "jobs/form.html",
         {
-            "request": request,
             "schedule": schedule,
             "devices": devices,
             "destinations": destinations,
@@ -228,8 +227,7 @@ async def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
 async def job_history(request: Request, db: Session = Depends(get_db)):
     runs = db.query(JobRun).order_by(JobRun.started_at.desc()).limit(50).all()
     return request.app.state.templates.TemplateResponse(
-        "jobs/history.html",
-        {"request": request, "runs": runs},
+        request, "jobs/history.html", {"runs": runs},
     )
 
 
@@ -244,6 +242,5 @@ async def job_run_detail(run_id: int, request: Request, db: Session = Depends(ge
     for b in backups:
         b.device_hostname = device_map.get(b.device_id, "Unknown")
     return request.app.state.templates.TemplateResponse(
-        "jobs/run_detail.html",
-        {"request": request, "run": run, "backups": backups},
+        request, "jobs/run_detail.html", {"run": run, "backups": backups},
     )

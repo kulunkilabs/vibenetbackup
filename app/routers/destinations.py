@@ -13,17 +13,16 @@ router = APIRouter(prefix="/destinations")
 async def list_destinations(request: Request, db: Session = Depends(get_db)):
     destinations = db.query(Destination).order_by(Destination.name).all()
     return request.app.state.templates.TemplateResponse(
-        "destinations/list.html",
-        {"request": request, "destinations": destinations},
+        request, "destinations/list.html", {"destinations": destinations},
     )
 
 
 @router.get("/add")
 async def add_destination_form(request: Request):
     return request.app.state.templates.TemplateResponse(
+        request,
         "destinations/form.html",
         {
-            "request": request,
             "destination": None,
             "dest_types": list(DestinationType),
         },
@@ -67,9 +66,9 @@ async def edit_destination_form(dest_id: int, request: Request, db: Session = De
     if not dest:
         raise HTTPException(status_code=404, detail="Destination not found")
     return request.app.state.templates.TemplateResponse(
+        request,
         "destinations/form.html",
         {
-            "request": request,
             "destination": dest,
             "dest_types": list(DestinationType),
         },

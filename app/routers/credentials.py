@@ -19,16 +19,15 @@ router = APIRouter(prefix="/credentials")
 async def list_credentials(request: Request, db: Session = Depends(get_db)):
     credentials = db.query(Credential).order_by(Credential.name).all()
     return request.app.state.templates.TemplateResponse(
-        "credentials/list.html",
-        {"request": request, "credentials": credentials},
+        request, "credentials/list.html", {"credentials": credentials},
     )
 
 
 @router.get("/add")
 async def add_credential_form(request: Request, db: Session = Depends(get_db)):
     return request.app.state.templates.TemplateResponse(
-        "credentials/form.html",
-        {"request": request, "credential": None, "groups": db.query(Group).order_by(Group.name).all()},
+        request, "credentials/form.html",
+        {"credential": None, "groups": db.query(Group).order_by(Group.name).all()},
     )
 
 
@@ -64,8 +63,8 @@ async def edit_credential_form(cred_id: int, request: Request, db: Session = Dep
     if not cred:
         raise HTTPException(status_code=404, detail="Credential not found")
     return request.app.state.templates.TemplateResponse(
-        "credentials/form.html",
-        {"request": request, "credential": cred, "groups": db.query(Group).order_by(Group.name).all()},
+        request, "credentials/form.html",
+        {"credential": cred, "groups": db.query(Group).order_by(Group.name).all()},
     )
 
 

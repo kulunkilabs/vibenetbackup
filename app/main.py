@@ -217,7 +217,7 @@ from app.security import verify_credentials, generate_session_token, _COOKIE_NAM
 @app.get("/login")
 async def login_page(request: Request, next: str = "/"):
     return app.state.templates.TemplateResponse(
-        "login.html", {"request": request, "next": next, "error": None}
+        request, "login.html", {"next": next, "error": None}
     )
 
 @app.post("/login")
@@ -230,8 +230,9 @@ async def login_submit(
 ):
     if not verify_credentials(username, password):
         return app.state.templates.TemplateResponse(
+            request,
             "login.html",
-            {"request": request, "next": next, "error": "Invalid username or password"},
+            {"next": next, "error": "Invalid username or password"},
             status_code=401,
         )
     token = generate_session_token()

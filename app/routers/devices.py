@@ -35,9 +35,9 @@ async def list_devices(request: Request, db: Session = Depends(get_db)):
     credentials = db.query(Credential).order_by(Credential.name).all()
     groups = db.query(Group).order_by(Group.name).all()
     return request.app.state.templates.TemplateResponse(
+        request,
         "devices/list.html",
         {
-            "request": request,
             "devices": devices,
             "device_type_labels": DEVICE_TYPES,
             "credentials": credentials,
@@ -73,9 +73,9 @@ async def batch_edit_devices(
 async def add_device_form(request: Request, db: Session = Depends(get_db)):
     credentials = db.query(Credential).order_by(Credential.name).all()
     return request.app.state.templates.TemplateResponse(
+        request,
         "devices/form.html",
         {
-            "request": request,
             "device": None,
             "credentials": credentials,
             "device_types": DEVICE_TYPES,
@@ -120,8 +120,9 @@ async def add_device(
 async def test_all_page(request: Request, db: Session = Depends(get_db)):
     devices = db.query(Device).filter(Device.enabled == True).order_by(Device.hostname).all()
     return request.app.state.templates.TemplateResponse(
+        request,
         "devices/test_all.html",
-        {"request": request, "devices": devices, "device_type_labels": DEVICE_TYPES},
+        {"devices": devices, "device_type_labels": DEVICE_TYPES},
     )
 
 
@@ -160,9 +161,9 @@ async def import_oxidized_form(request: Request, db: Session = Depends(get_db)):
     credentials = db.query(Credential).order_by(Credential.name).all()
 
     return request.app.state.templates.TemplateResponse(
+        request,
         "devices/import_oxidized.html",
         {
-            "request": request,
             "nodes": nodes,
             "error": error,
             "oxidized_url": oxidized_url,
@@ -243,9 +244,9 @@ async def device_detail(device_id: int, request: Request, db: Session = Depends(
     )
 
     return request.app.state.templates.TemplateResponse(
+        request,
         "devices/detail.html",
         {
-            "request": request,
             "device": device,
             "backups": recent_backups,
             "device_type_labels": DEVICE_TYPES,
@@ -260,9 +261,9 @@ async def clone_device_form(device_id: int, request: Request, db: Session = Depe
         raise HTTPException(status_code=404, detail="Device not found")
     credentials = db.query(Credential).order_by(Credential.name).all()
     return request.app.state.templates.TemplateResponse(
+        request,
         "devices/form.html",
         {
-            "request": request,
             "device": None,
             "clone": source,
             "credentials": credentials,
@@ -280,9 +281,9 @@ async def edit_device_form(device_id: int, request: Request, db: Session = Depen
         raise HTTPException(status_code=404, detail="Device not found")
     credentials = db.query(Credential).order_by(Credential.name).all()
     return request.app.state.templates.TemplateResponse(
+        request,
         "devices/form.html",
         {
-            "request": request,
             "device": device,
             "credentials": credentials,
             "device_types": DEVICE_TYPES,

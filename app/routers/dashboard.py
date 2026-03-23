@@ -45,9 +45,9 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     )
 
     return request.app.state.templates.TemplateResponse(
+        request,
         "dashboard.html",
         {
-            "request": request,
             "device_count": device_count,
             "enabled_count": enabled_count,
             "backup_count": backup_count,

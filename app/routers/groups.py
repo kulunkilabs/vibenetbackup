@@ -12,8 +12,7 @@ router = APIRouter(prefix="/groups")
 async def list_groups(request: Request, db: Session = Depends(get_db)):
     groups = db.query(Group).order_by(Group.name).all()
     return request.app.state.templates.TemplateResponse(
-        "groups/list.html",
-        {"request": request, "groups": groups},
+        request, "groups/list.html", {"groups": groups},
     )
 
 

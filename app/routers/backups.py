@@ -39,8 +39,7 @@ async def list_backups(request: Request, db: Session = Depends(get_db)):
     for b in backups:
         b.device_hostname = device_map.get(b.device_id, "Unknown")
     return request.app.state.templates.TemplateResponse(
-        "backups/list.html",
-        {"request": request, "backups": backups},
+        request, "backups/list.html", {"backups": backups},
     )
 
 
@@ -49,8 +48,8 @@ async def trigger_form(request: Request, db: Session = Depends(get_db)):
     devices = db.query(Device).filter(Device.enabled == True).order_by(Device.hostname).all()
     destinations = db.query(Destination).filter(Destination.enabled == True).all()
     return request.app.state.templates.TemplateResponse(
-        "backups/trigger.html",
-        {"request": request, "devices": devices, "destinations": destinations},
+        request, "backups/trigger.html",
+        {"devices": devices, "destinations": destinations},
     )
 
 
@@ -119,9 +118,9 @@ async def backup_detail(backup_id: int, request: Request, db: Session = Depends(
                 diff_html = "\n".join(diff_lines)
 
     return request.app.state.templates.TemplateResponse(
+        request,
         "backups/detail.html",
         {
-            "request": request,
             "backup": backup,
             "device": device,
             "diff_html": diff_html,
