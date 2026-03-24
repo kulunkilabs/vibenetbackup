@@ -126,22 +126,51 @@ class PfSenseEngine(BackupEngine):
         except (httpx.HTTPError, json.JSONDecodeError):
             logger.debug("pfSense: REST API failed, falling back to PHP endpoint")
 
-        # Fallback: Use the backup PHP endpoint
+        # Fallback: session-based PHP endpoint (no package needed)
         logger.info("pfSense: trying PHP endpoint for %s", device.hostname)
 
-        # First GET to get the CSRF token
+        # Step 1: GET login page to obtain CSRF token
         resp = await self._try_request(
-            client, device, "GET", "/diag_backup.php",
-            auth=(username, password), timeout=30,
+            client, device, "GET", "/index.php", timeout=30,
         )
-        self._check_pfsense_status(resp, device, "backup page")
-
-        # Detect which scheme succeeded for the follow-up POST
-        actual_base = str(resp.url).split("/diag_backup.php")[0]
-
+        if resp.status_code >= 400:
+            raise RuntimeError(
+                f"pfSense login page returned HTTP {resp.status_code} for {device.hostname}"
+            )
+        actual_base = str(resp.url).rsplit("/", 1)[0]
         csrf_token = self._extract_csrf_token(resp.text)
 
-        # POST to download the config
+        # Step 2: POST login credentials to establish session cookie
+        login_data = {
+            "__csrf_magic": csrf_token,
+            "usernamefld": username,
+            "passwordfld": password,
+            "login": "Sign In",
+        }
+        resp = await client.post(
+            f"{actual_base}/index.php",
+            data=login_data,
+            timeout=30,
+        )
+        # pfSense redirects to / on success; check we're not still on the login page
+        if "usernamefld" in resp.text and "passwordfld" in resp.text:
+            raise PermissionError(
+                f"pfSense authentication failed for {device.hostname} — "
+                "check web UI username and password"
+            )
+
+        # Step 3: GET backup page with session cookie to get a new CSRF token
+        resp = await client.get(
+            f"{actual_base}/diag_backup.php", timeout=30,
+        )
+        self._check_pfsense_status(resp, device, "backup page")
+        csrf_token = self._extract_csrf_token(resp.text)
+        if not csrf_token:
+            raise RuntimeError(
+                f"pfSense: could not extract CSRF token from backup page for {device.hostname}"
+            )
+
+        # Step 4: POST to download the config XML
         post_data = {
             "__csrf_magic": csrf_token,
             "backuparea": "",
@@ -149,20 +178,24 @@ class PfSenseEngine(BackupEngine):
             "donotbackuprrd": "",
             "download": "Download configuration as XML",
         }
-
         resp = await client.post(
             f"{actual_base}/diag_backup.php",
             data=post_data,
-            auth=(username, password),
             timeout=60,
         )
 
-        if resp.status_code == 200:
+        if resp.status_code == 200 and "<?xml" in resp.text[:100]:
             logger.info(
                 "pfSense: got config via PHP endpoint for %s (%d bytes)",
                 device.hostname, len(resp.text),
             )
             return resp.text
+        if resp.status_code == 200:
+            # Got 200 but not XML — likely session expired or wrong page
+            raise RuntimeError(
+                f"pfSense backup page did not return XML for {device.hostname} — "
+                "check user has 'WebCfg - Diagnostics: Backup & Restore' privilege"
+            )
         self._check_pfsense_status(resp, device, "backup download")
 
     async def _fetch_opnsense_config(
@@ -285,10 +318,38 @@ class PfSenseEngine(BackupEngine):
                     except (httpx.HTTPError, json.JSONDecodeError):
                         pass  # REST API not installed, try PHP endpoint
 
-                    # Fall back to PHP backup page
+                    # Fall back to session-based PHP login
+                    username = credential.username
+                    password = credential.get_password()
+
+                    # GET login page for CSRF token
                     resp = await self._try_request(
-                        client, device, "GET", "/diag_backup.php",
-                        auth=auth, timeout=10,
+                        client, device, "GET", "/index.php", timeout=10,
+                    )
+                    if resp.status_code >= 400:
+                        raise RuntimeError(f"pfSense login page returned HTTP {resp.status_code}")
+                    actual_base = str(resp.url).rsplit("/", 1)[0]
+                    csrf_token = self._extract_csrf_token(resp.text)
+
+                    # POST login
+                    login_data = {
+                        "__csrf_magic": csrf_token,
+                        "usernamefld": username,
+                        "passwordfld": password,
+                        "login": "Sign In",
+                    }
+                    resp = await client.post(
+                        f"{actual_base}/index.php", data=login_data, timeout=10,
+                    )
+                    if "usernamefld" in resp.text and "passwordfld" in resp.text:
+                        raise PermissionError(
+                            f"pfSense authentication failed for {device.hostname} — "
+                            "check web UI username and password"
+                        )
+
+                    # Verify we can reach the backup page
+                    resp = await client.get(
+                        f"{actual_base}/diag_backup.php", timeout=10,
                     )
                     if resp.status_code == 200:
                         return True
