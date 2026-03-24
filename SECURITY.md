@@ -169,4 +169,8 @@ If you suspect unauthorized access:
 
 ## 📞 Reporting Security Issues
 
-If you discover a security vulnerability, please report it responsibly.
+If you discover a security vulnerability, please report it privately through GitHub:
+
+- **GitHub Security Advisories:** [Report a vulnerability](https://github.com/kulunkilabs/vibenetbackup/security/advisories/new)
+
+Please do not open public issues for security vulnerabilities.

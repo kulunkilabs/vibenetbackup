@@ -5,7 +5,7 @@ Network device configuration backup manager with multi-engine support, automated
 **Version:** 1.5.5 | **License:** MIT
 
 <p align="center">
-  <img src="docs/screenshots/v1.1/screensh_01.png" alt="VIBENetBackup Dashboard" width="900"/>
+  <img src="docs/screenshots/screensh_01.png" alt="VIBENetBackup Dashboard" width="900"/>
 </p>
 
 ---
@@ -50,22 +50,22 @@ docker compose up -d
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/v1.1/screensh_01.png" alt="Dashboard" width="800"/><br/>
+  <img src="docs/screenshots/screensh_01.png" alt="Dashboard" width="800"/><br/>
   <em>Dashboard — device stats, recent backups, job status</em>
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/v1.1/screensh_02.png" alt="Devices" width="800"/><br/>
+  <img src="docs/screenshots/screensh_02.png" alt="Devices" width="800"/><br/>
   <em>Devices — manage, test, backup with one click</em>
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/v1.1/screensh_03.png" alt="Backups" width="800"/><br/>
+  <img src="docs/screenshots/screensh_03.png" alt="Backups" width="800"/><br/>
   <em>Backups — full history with hash, status, diff viewer</em>
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/v1.1/screensh_05.png" alt="Job History" width="800"/><br/>
+  <img src="docs/screenshots/screensh_05.png" alt="Job History" width="800"/><br/>
   <em>Job History — scheduled backup run results</em>
 </p>
 
