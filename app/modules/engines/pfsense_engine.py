@@ -139,6 +139,7 @@ class PfSenseEngine(BackupEngine):
             )
         actual_base = str(resp.url).rsplit("/", 1)[0]
         csrf_token = self._extract_csrf_token(resp.text)
+        logger.debug("pfSense: login CSRF token extracted (%s)", "found" if csrf_token else "MISSING")
 
         # Step 2: POST login credentials to establish session cookie
         login_data = {
@@ -152,8 +153,18 @@ class PfSenseEngine(BackupEngine):
             data=login_data,
             timeout=30,
         )
+        logger.debug(
+            "pfSense: login POST status=%d, url=%s, cookies=%s",
+            resp.status_code, resp.url, list(client.cookies.keys()),
+        )
         # pfSense redirects to / on success; check we're not still on the login page
         if "usernamefld" in resp.text and "passwordfld" in resp.text:
+            # Distinguish CSRF failure from bad credentials
+            if not csrf_token:
+                raise RuntimeError(
+                    f"pfSense login failed for {device.hostname} — "
+                    "could not extract CSRF token from login page"
+                )
             raise PermissionError(
                 f"pfSense authentication failed for {device.hostname} — "
                 "check web UI username and password"
@@ -238,14 +249,29 @@ class PfSenseEngine(BackupEngine):
             raise RuntimeError(f"OPNsense API returned {resp.status_code}: {resp.text[:200]}")
 
     def _extract_csrf_token(self, html: str) -> str:
-        """Extract CSRF token from pfSense HTML page."""
-        match = re.search(r'name="__csrf_magic" value="([^"]+)"', html)
+        """Extract CSRF token from pfSense HTML page.
+
+        pfSense uses csrf-magic which can inject the token as:
+        1. A hidden input: <input name="__csrf_magic" value="sid:..." />
+        2. A JS variable: var csrfMagicToken = "sid:...";
+        """
+        # Hidden input field (most common)
+        match = re.search(r'name="__csrf_magic"\s+value="([^"]+)"', html)
         if match:
             return match.group(1)
-        # Try alternative format
-        match = re.search(r'__csrf_magic\s*value=["\']([^"\']+)["\']', html)
+        # Reversed attribute order
+        match = re.search(r'value="([^"]+)"\s+name="__csrf_magic"', html)
         if match:
             return match.group(1)
+        # Single-quoted variant
+        match = re.search(r"name='__csrf_magic'\s+value='([^']+)'", html)
+        if match:
+            return match.group(1)
+        # JavaScript injection (csrf-magic.js rewrite mode)
+        match = re.search(r'var\s+csrfMagicToken\s*=\s*["\']([^"\']+)["\']', html)
+        if match:
+            return match.group(1)
+        logger.warning("pfSense: could not extract CSRF token from page")
         return ""
 
     async def fetch_config(self, device: Device, credential: Credential) -> str:
