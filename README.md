@@ -22,28 +22,30 @@ Network device configuration backup manager with multi-engine support, automated
 - **Cookie-based auth** — 14-day sessions with HMAC-SHA256 signed tokens
 - **Encrypted credentials** — Fernet encryption for stored passwords
 - **Import from Oxidized** — Pull your device inventory in one click
-- **Device groups** — Organize devices and credentials
+- **Device groups** — Organize devices and credentials by group
 
 ---
 
-## Quick Install
+## Quick Start
 
-**One-liner (Linux with systemd):**
+### Docker (recommended)
+
+```bash
+mkdir vibenetbackup && cd vibenetbackup
+curl -fsSL https://raw.githubusercontent.com/kulunkilabs/vibenetbackup/main/docker/image/docker-compose.yml -o docker-compose.yml
+# Edit docker-compose.yml — change SECRET_KEY and AUTH_PASSWORD
+docker compose up -d
+```
+
+### One-liner install (Linux with systemd)
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kulunkilabs/vibenetbackup/main/install.sh | sudo bash
 ```
 
-**Docker:**
-```bash
-mkdir vibenetbackup && cd vibenetbackup
-curl -fsSL https://raw.githubusercontent.com/kulunkilabs/vibenetbackup/main/docker/image/docker-compose.yml -o docker-compose.yml
-# Edit docker-compose.yml to set SECRET_KEY and AUTH_PASSWORD
-docker compose up -d
-```
+Open `http://<your-server-ip>:5005` — default credentials are shown during install.
 
-**Access:** `http://<your-server-ip>:5005` — credentials shown during install.
-
-> See [docs/INSTALL.md](docs/INSTALL.md) for all installation methods, Docker build-from-source, and upgrade instructions.
+> Full installation guide: [docs/INSTALL.md](docs/INSTALL.md)
 
 ---
 
@@ -83,9 +85,9 @@ docker compose up -d
 | **HP/Aruba** | ProCurve, Comware |
 | **Dell** | OS6, OS9, OS10, Force10 |
 | **pfSense/OPNsense** | API backup |
-| **Proxmox VE** | SSH/SFTP (90+ config files as tar.gz, symlinks preserved) |
+| **Proxmox VE** | SSH/SFTP config collection (90+ files, stored as tar.gz) |
 
-> See [docs/DEVICES.md](docs/DEVICES.md) for setup guides, commands, and troubleshooting per vendor.
+> Device setup guides and troubleshooting: [docs/DEVICES.md](docs/DEVICES.md)
 
 ---
 
@@ -93,10 +95,11 @@ docker compose up -d
 
 | Doc | Description |
 |-----|-------------|
-| [docs/INSTALL.md](docs/INSTALL.md) | All installation methods, Docker, upgrades, uninstall |
-| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Environment variables, secrets, CORS, security, HTTPS |
-| [docs/DEVICES.md](docs/DEVICES.md) | Supported devices, Proxmox VE, Nokia SR OS, pfSense/OPNsense, Oxidized |
+| [docs/INSTALL.md](docs/INSTALL.md) | Installation methods, Docker, upgrades, uninstall |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Environment variables, secrets, CORS, HTTPS, security |
+| [docs/DEVICES.md](docs/DEVICES.md) | Supported devices, setup guides, vendor-specific notes |
 | [docs/API.md](docs/API.md) | REST API reference with curl examples |
+| [SECURITY.md](SECURITY.md) | Security features, hardening, incident response |
 
 ---
 

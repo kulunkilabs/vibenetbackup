@@ -1,81 +1,59 @@
-# VIBENetBackup Security Guide
+# Security Guide
 
-## 🔐 Security Features Added
+## Security Features
 
-### 1. Authentication (HTTP Basic Auth)
-All endpoints now require authentication using HTTP Basic Auth.
+### Authentication
+All endpoints require authentication via cookie-based sessions (web UI) or HTTP Basic Auth (API).
 
 **Default credentials:**
 - Username: `admin`
-- Password: `changeme-strong-password` ⚠️ **CHANGE THIS!**
+- Password: auto-generated during install (or `changeme-strong-password` in Docker)
 
-**To change credentials:**
-```bash
-# Edit the .env file
-nano .env
+**Change credentials:** edit `AUTH_USERNAME` and `AUTH_PASSWORD` in `.env` (or `docker-compose.yml`) and restart.
 
-# Change these values:
-AUTH_USERNAME=your-username
-AUTH_PASSWORD=your-strong-password
-```
+### Credential Encryption
+Device passwords and secrets are encrypted at rest using Fernet symmetric encryption, derived from your `SECRET_KEY`.
 
-### 2. CORS Restrictions
-CORS is now restricted to specific origins instead of allowing all (`*`).
-
-**Configure allowed origins in `.env`:**
-```bash
-CORS_ORIGINS=http://localhost:5005,http://127.0.0.1:5005,http://0.0.0.0:5005
-```
-
-### 3. Security Headers
-The following security headers are now added to all responses:
+### Security Headers
+The following headers are added to all responses:
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: DENY`
 - `X-XSS-Protection: 1; mode=block`
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
 - `Content-Security-Policy`
 
-### 4. Rate Limiting
-Rate limiting module is available (see below for setup).
-
-### 5. File Permissions
-Run `./secure_permissions.sh` to secure sensitive files.
+### CORS
+CORS is restricted to origins listed in `CORS_ORIGINS`. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for details.
 
 ---
 
-## 🚀 Quick Security Setup
+## Security Checklist
 
-```bash
-# 1. Set secure file permissions
-chmod +x secure_permissions.sh
-./secure_permissions.sh
-
-# 2. Change default password in .env
-nano .env
-# Change: AUTH_PASSWORD=your-unique-strong-password
-
-# 3. Restart the application
-./run.sh
-```
+- [ ] Changed default `AUTH_PASSWORD` to a strong password
+- [ ] Set a strong, random `SECRET_KEY` (32+ characters)
+- [ ] Restricted `CORS_ORIGINS` to known IPs/domains only
+- [ ] Enabled HTTPS via reverse proxy or direct SSL
+- [ ] Configured firewall rules to restrict port 5005 access
+- [ ] Regular backups of the database file
+- [ ] Enabled automatic security updates on the server
 
 ---
 
-## 🔒 HTTPS/SSL Setup (Recommended for Production)
+## HTTPS/SSL (recommended for production)
 
-### Option A: Using a Reverse Proxy (Recommended)
+### Option A: Reverse Proxy (recommended)
 
-Use Nginx or Apache as a reverse proxy with SSL:
+Use Nginx or similar as a reverse proxy with SSL termination:
 
-**Nginx example:**
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name your-domain.com;
-    
+    server_name backup.yourdomain.com;
+
     ssl_certificate /path/to/cert.pem;
     ssl_certificate_key /path/to/key.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
-    
+
     location / {
         proxy_pass http://localhost:5005;
         proxy_set_header Host $host;
@@ -87,7 +65,7 @@ server {
 ### Option B: Direct SSL with Uvicorn
 
 ```bash
-# Generate self-signed certificate (for testing)
+# Generate self-signed certificate (testing only)
 openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
 
 # Run with SSL
@@ -96,78 +74,65 @@ uvicorn app.main:app --host 0.0.0.0 --port 5005 --ssl-keyfile key.pem --ssl-cert
 
 ---
 
-## 🛡️ Additional Security Recommendations
+## Network Hardening
 
-### 1. Network Binding
-If you only access from localhost or via reverse proxy:
-
-```bash
-# In .env, change:
-HOST=127.0.0.1  # Instead of 0.0.0.0
+### Bind to localhost
+If using a reverse proxy, restrict the listen address:
+```env
+HOST=127.0.0.1
 ```
 
-### 2. Firewall Rules
-
+### Firewall rules
 ```bash
-# Allow only specific IPs (example with ufw)
+# Allow only specific subnets
 sudo ufw allow from 198.51.100.0/24 to any port 5005
 
-# Or block external access completely if using reverse proxy
+# Block external access if using reverse proxy
 sudo ufw deny 5005/tcp
 ```
 
-### 3. Fail2ban
-Install fail2ban to block brute-force attempts:
+### Fail2ban
+Block brute-force login attempts:
 
 ```bash
 sudo apt install fail2ban
+```
 
-# Create /etc/fail2ban/jail.local
+Create `/etc/fail2ban/filter.d/vibenetbackup.conf`:
+```ini
+[Definition]
+failregex = ^.*INFO:.*<HOST>.*"POST /login HTTP.*" 401
+```
+
+Create or add to `/etc/fail2ban/jail.local`:
+```ini
 [vibenetbackup]
 enabled = true
 port = 5005
 filter = vibenetbackup
-logpath = /var/log/vibenetbackup.log
+logpath = /var/log/syslog
 maxretry = 5
 bantime = 3600
 ```
 
-### 4. Audit Logging
-Enable audit logging by setting in `.env`:
-```bash
-LOG_LEVEL=INFO
-```
+> **Note:** Adjust `logpath` to match your setup. For systemd installs, use `/var/log/syslog` or pipe journal output. For Docker, use `docker compose logs` output.
 
 ---
 
-## ⚠️ Security Checklist
-
-- [ ] Changed default `AUTH_PASSWORD` from `changeme-strong-password`
-- [ ] Set strong `SECRET_KEY` (32+ random characters)
-- [ ] Restricted `CORS_ORIGINS` to known IPs/domains only
-- [ ] Secured file permissions with `./secure_permissions.sh`
-- [ ] Enabled HTTPS/SSL (via reverse proxy or direct)
-- [ ] Configured firewall rules
-- [ ] Disabled password login if using SSH keys for servers
-- [ ] Regular backups of the database file
-- [ ] Enabled automatic security updates on the server
-
----
-
-## 🚨 Security Incident Response
+## Incident Response
 
 If you suspect unauthorized access:
 
-1. **Stop the application immediately**
-2. **Check logs:** `tail -f /var/log/vibenetbackup.log` or check the log output
-3. **Change all credentials:** Update `.env` with new passwords and keys
-4. **Regenerate SECRET_KEY:** This will invalidate existing encrypted credentials
-5. **Review database:** Check for unauthorized changes
-6. **Check backups:** Verify backup integrity
+1. **Stop the application** — `sudo systemctl stop vibenetbackup` or `docker compose down`
+2. **Check logs** — `sudo journalctl -u vibenetbackup` or `docker compose logs`
+3. **Change all credentials** — update `AUTH_PASSWORD` in `.env`
+4. **Regenerate SECRET_KEY** — this will invalidate all stored encrypted credentials (you will need to re-enter device passwords)
+5. **Review database** — check for unauthorized changes
+6. **Verify backups** — ensure backup files have not been tampered with
 
 ---
 
-## 📞 Reporting Security Issues
+## Reporting Security Issues
 
 If you discover a security vulnerability, please report it privately through GitHub:
 
