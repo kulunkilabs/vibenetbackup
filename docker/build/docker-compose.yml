@@ -22,4 +22,6 @@ services:
       - ./ssh_keys:/app/ssh_keys
     env_file:
       - ../../.env
+    environment:
+      - TZ=${TZ:-America/Chicago}
     restart: unless-stopped

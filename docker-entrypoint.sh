@@ -1,4 +1,9 @@
 #!/bin/bash
+# Apply timezone from TZ env var at runtime
+if [ -n "$TZ" ] && [ -f "/usr/share/zoneinfo/$TZ" ]; then
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+fi
+
 # Ensure SECRET_KEY is persisted so credentials survive upgrades and docker pulls.
 # Saves to /app/data/.secret_key (inside the mounted data volume).
 

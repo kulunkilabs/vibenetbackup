@@ -2,9 +2,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# System deps for paramiko/cryptography
+# Timezone (set TZ env var to override, e.g. America/New_York)
+ENV TZ=America/Chicago
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc libffi-dev && \
+    apt-get install -y --no-install-recommends gcc libffi-dev tzdata && \
+    ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime && echo ${TZ} > /etc/timezone && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
