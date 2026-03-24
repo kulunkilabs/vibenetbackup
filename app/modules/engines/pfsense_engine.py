@@ -141,6 +141,12 @@ class PfSenseEngine(BackupEngine):
         csrf_token = self._extract_csrf_token(resp.text)
         logger.debug("pfSense: login CSRF token extracted (%s)", "found" if csrf_token else "MISSING")
 
+        # Headers required by pfSense CSRF origin checking
+        csrf_headers = {
+            "Referer": f"{actual_base}/index.php",
+            "Origin": actual_base,
+        }
+
         # Step 2: POST login credentials to establish session cookie
         login_data = {
             "__csrf_magic": csrf_token,
@@ -151,12 +157,19 @@ class PfSenseEngine(BackupEngine):
         resp = await client.post(
             f"{actual_base}/index.php",
             data=login_data,
+            headers=csrf_headers,
             timeout=30,
         )
         logger.debug(
             "pfSense: login POST status=%d, url=%s, cookies=%s",
             resp.status_code, resp.url, list(client.cookies.keys()),
         )
+        # 403 on login POST = CSRF rejection (missing/bad token or origin check)
+        if resp.status_code == 403:
+            raise RuntimeError(
+                f"pfSense CSRF validation failed for {device.hostname} — "
+                f"login POST returned 403 (token {'present' if csrf_token else 'MISSING'})"
+            )
         # pfSense redirects to / on success; check we're not still on the login page
         if "usernamefld" in resp.text and "passwordfld" in resp.text:
             # Distinguish CSRF failure from bad credentials
@@ -189,9 +202,14 @@ class PfSenseEngine(BackupEngine):
             "donotbackuprrd": "",
             "download": "Download configuration as XML",
         }
+        backup_headers = {
+            "Referer": f"{actual_base}/diag_backup.php",
+            "Origin": actual_base,
+        }
         resp = await client.post(
             f"{actual_base}/diag_backup.php",
             data=post_data,
+            headers=backup_headers,
             timeout=60,
         )
 
@@ -358,6 +376,10 @@ class PfSenseEngine(BackupEngine):
                     csrf_token = self._extract_csrf_token(resp.text)
 
                     # POST login
+                    csrf_headers = {
+                        "Referer": f"{actual_base}/index.php",
+                        "Origin": actual_base,
+                    }
                     login_data = {
                         "__csrf_magic": csrf_token,
                         "usernamefld": username,
@@ -365,8 +387,14 @@ class PfSenseEngine(BackupEngine):
                         "login": "Sign In",
                     }
                     resp = await client.post(
-                        f"{actual_base}/index.php", data=login_data, timeout=10,
+                        f"{actual_base}/index.php", data=login_data,
+                        headers=csrf_headers, timeout=10,
                     )
+                    if resp.status_code == 403:
+                        raise RuntimeError(
+                            f"pfSense CSRF validation failed for {device.hostname} — "
+                            "login POST returned 403"
+                        )
                     if "usernamefld" in resp.text and "passwordfld" in resp.text:
                         raise PermissionError(
                             f"pfSense authentication failed for {device.hostname} — "
