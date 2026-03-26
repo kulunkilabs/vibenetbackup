@@ -9,6 +9,11 @@ from app.modules.destinations.base import DestinationBackend
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_hostname(hostname: str) -> str:
+    """Strip directory components from hostname to prevent path traversal."""
+    return os.path.basename(hostname.replace("\\", "/")) or "unknown"
+
+
 class GitDestination(DestinationBackend):
     """Commit configs to a local git repo, optionally push to a remote.
 
@@ -41,8 +46,9 @@ class GitDestination(DestinationBackend):
             else:
                 repo = git.Repo(repo_path)
 
-            # Write config file
-            cfg_filename = f"{hostname}.cfg"
+            # Write config file (sanitize hostname to prevent path traversal)
+            safe_hostname = _sanitize_hostname(hostname)
+            cfg_filename = f"{safe_hostname}.cfg"
             cfg_path = os.path.join(repo_path, cfg_filename)
             with open(cfg_path, "w", encoding="utf-8") as f:
                 f.write(config_text)
@@ -115,8 +121,9 @@ class GitDestination(DestinationBackend):
         if auth_method == "ssh":
             ssh_key_path = config.get("ssh_key_path", "")
             if ssh_key_path:
+                import shlex
                 env["GIT_SSH_COMMAND"] = (
-                    f"ssh -i {ssh_key_path} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+                    f"ssh -i {shlex.quote(ssh_key_path)} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
                 )
 
         return env

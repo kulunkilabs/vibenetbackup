@@ -33,8 +33,9 @@ class ForgejoDestination(DestinationBackend):
             else:
                 repo = git.Repo(repo_path)
 
-            # Write config file: {group}/{hostname}.cfg or just {hostname}.cfg
-            cfg_filename = f"{hostname}.cfg"
+            # Write config file (sanitize hostname to prevent path traversal)
+            safe_hostname = os.path.basename(hostname.replace("\\", "/")) or "unknown"
+            cfg_filename = f"{safe_hostname}.cfg"
             cfg_path = os.path.join(repo_path, cfg_filename)
             with open(cfg_path, "w", encoding="utf-8") as f:
                 f.write(config_text)

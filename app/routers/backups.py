@@ -99,7 +99,11 @@ async def batch_delete_backups(
         return RedirectResponse(url="/backups", status_code=303)
 
     for bid in backup_ids:
-        backup = db.query(Backup).get(int(bid))
+        try:
+            bid_int = int(bid)
+        except (ValueError, TypeError):
+            continue
+        backup = db.query(Backup).get(bid_int)
         if not backup:
             continue
         manifest = _parse_archive_manifest(backup.config_text) if backup.config_text else None
@@ -148,8 +152,8 @@ async def backup_now(device_id: int, request: Request, db: Session = Depends(get
             return HTMLResponse('<span class="badge bg-info">Config unchanged</span>')
         else:
             return HTMLResponse(f'<span class="badge bg-danger">Failed: {backup.error_message}</span>')
-    except Exception as e:
-        return HTMLResponse(f'<span class="badge bg-danger">Error: {e}</span>')
+    except Exception:
+        return HTMLResponse('<span class="badge bg-danger">Backup error</span>')
 
 
 @router.get("/{backup_id}")
@@ -251,9 +255,7 @@ async def download_single_file(
     if not archive_path or not os.path.exists(archive_path):
         raise HTTPException(status_code=404, detail="Archive file not found on disk")
 
-    safe_path = path.lstrip("/").replace("..", "")
-    if not safe_path:
-        raise HTTPException(status_code=400, detail="Invalid file path")
+    safe_path = _sanitize_archive_path(path)
 
     content = _read_from_archive(manifest, archive_path, safe_path)
 
@@ -291,9 +293,7 @@ async def view_single_file(
     if not archive_path or not os.path.exists(archive_path):
         raise HTTPException(status_code=404, detail="Archive file not found on disk")
 
-    safe_path = path.lstrip("/").replace("..", "")
-    if not safe_path:
-        raise HTTPException(status_code=400, detail="Invalid file path")
+    safe_path = _sanitize_archive_path(path)
 
     content = _read_from_archive(manifest, archive_path, safe_path)
     return PlainTextResponse(content.decode("utf-8", errors="replace"))
@@ -315,6 +315,19 @@ async def delete_backup(backup_id: int, db: Session = Depends(get_db)):
     db.delete(backup)
     db.commit()
     return RedirectResponse(url="/backups", status_code=303)
+
+
+def _sanitize_archive_path(path: str) -> str:
+    """Sanitize a file path for archive member access, preventing traversal."""
+    import posixpath
+    # Normalize the path and resolve any .. components
+    cleaned = posixpath.normpath(path.replace("\\", "/")).lstrip("/")
+    # Reject if normpath still produced a traversal
+    if cleaned.startswith("..") or "/../" in cleaned or cleaned == ".":
+        raise HTTPException(status_code=400, detail="Invalid file path")
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="Invalid file path")
+    return cleaned
 
 
 def _read_from_archive(manifest: dict, archive_path: str, member_path: str) -> bytes:

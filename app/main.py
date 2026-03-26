@@ -48,6 +48,13 @@ async def lifespan(app: FastAPI):
     # Re-register any existing schedules
     _reload_schedules()
 
+    # Warn if default credentials are still in use
+    if settings.AUTH_USERNAME == "admin" and settings.AUTH_PASSWORD == "admin":
+        logger.warning(
+            "DEFAULT CREDENTIALS IN USE — set AUTH_USERNAME and AUTH_PASSWORD "
+            "environment variables or in .env before exposing to a network"
+        )
+
     logger.info("VIBENetBackup started successfully")
     yield
 
@@ -273,7 +280,12 @@ async def login_submit(
         )
     token = generate_session_token()
     max_age = _SESSION_TTL if remember == "1" else None
-    response = RR(url=next if next.startswith("/") else "/", status_code=303)
+    # Prevent open redirect: must be a relative path, not //evil.com
+    from urllib.parse import urlparse
+    parsed = urlparse(next)
+    if parsed.scheme or parsed.netloc or not next.startswith("/"):
+        next = "/"
+    response = RR(url=next, status_code=303)
     response.set_cookie(
         key=_COOKIE_NAME,
         value=token,

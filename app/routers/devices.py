@@ -98,6 +98,8 @@ async def add_device(
     notes: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    if port < 1 or port > 65535:
+        raise HTTPException(status_code=400, detail="Port must be between 1 and 65535")
     device = Device(
         hostname=hostname,
         ip_address=ip_address,
@@ -311,6 +313,8 @@ async def edit_device(
     device = db.query(Device).get(device_id)
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
+    if port < 1 or port > 65535:
+        raise HTTPException(status_code=400, detail="Port must be between 1 and 65535")
     device.hostname = hostname
     device.ip_address = ip_address
     device.device_type = device_type
@@ -351,5 +355,5 @@ async def test_device_connection(device_id: int, request: Request, db: Session =
             return HTMLResponse('<span class="badge bg-success">Connection OK</span>')
         else:
             return HTMLResponse('<span class="badge bg-danger">Connection Failed</span>')
-    except Exception as e:
-        return HTMLResponse(f'<span class="badge bg-danger">Error: {e}</span>')
+    except Exception:
+        return HTMLResponse('<span class="badge bg-danger">Connection error</span>')

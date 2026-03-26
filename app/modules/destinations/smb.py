@@ -18,8 +18,9 @@ class SMBDestination(DestinationBackend):
         password = config.get("password", "")
         base_path = config.get("base_path", "backups")
 
+        safe_hostname = hostname.replace("\\", "/").split("/")[-1] or "unknown"
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
-        remote_dir = f"{base_path}/{hostname}"
+        remote_dir = f"{base_path}/{safe_hostname}"
         remote_path = f"{remote_dir}/{timestamp}.cfg"
 
         def _smb_write():

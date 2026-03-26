@@ -43,7 +43,7 @@ async def add_destination(
     try:
         config = json.loads(config_json)
     except json.JSONDecodeError:
-        config = {}
+        raise HTTPException(status_code=400, detail="Invalid JSON in configuration")
 
     dest = Destination(
         name=name,
@@ -94,7 +94,7 @@ async def edit_destination(
     try:
         config = json.loads(config_json)
     except json.JSONDecodeError:
-        config = {}
+        raise HTTPException(status_code=400, detail="Invalid JSON in configuration")
 
     dest.name = name
     dest.dest_type = DestinationType(dest_type)

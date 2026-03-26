@@ -135,9 +135,16 @@ async def generate_ssh_key(key_name: str = Form(...)):
 
 @router.post("/{cred_id}/delete")
 async def delete_credential(cred_id: int, db: Session = Depends(get_db)):
+    from app.models.device import Device
+
     cred = db.query(Credential).get(cred_id)
     if not cred:
         raise HTTPException(status_code=404, detail="Credential not found")
+
+    # Unlink devices that reference this credential before deleting
+    db.query(Device).filter(Device.credential_id == cred_id).update(
+        {"credential_id": None}, synchronize_session="fetch"
+    )
     db.delete(cred)
     db.commit()
     return RedirectResponse(url="/credentials", status_code=303)

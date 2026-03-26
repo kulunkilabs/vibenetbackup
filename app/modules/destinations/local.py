@@ -15,7 +15,8 @@ class LocalDestination(DestinationBackend):
 
     async def save(self, hostname: str, config_text: str, config: dict[str, Any]) -> str:
         base_dir = config.get("path", get_settings().BACKUP_DIR)
-        device_dir = os.path.join(base_dir, hostname)
+        safe_hostname = os.path.basename(hostname.replace("\\", "/")) or "unknown"
+        device_dir = os.path.join(base_dir, safe_hostname)
         os.makedirs(device_dir, exist_ok=True)
 
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")

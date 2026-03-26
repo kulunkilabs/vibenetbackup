@@ -6,20 +6,23 @@ from app.database import get_db
 from app.models.device import Device
 from app.models.job import Schedule, JobRun
 from app.models.destination import Destination
-from app.modules.scheduler.manager import add_backup_job, remove_backup_job, get_next_run_time
+from app.modules.scheduler.manager import add_backup_job, remove_backup_job, get_next_run_time, validate_cron_expression
 
 router = APIRouter(prefix="/jobs")
 
 
 async def _scheduled_backup_runner(schedule_id: int):
     """Callback executed by APScheduler when a schedule fires."""
+    import logging as _logging
     from app.database import SessionLocal
     from app.modules.backup_service import run_backup_job
 
+    _logger = _logging.getLogger(__name__)
     db = SessionLocal()
     try:
         schedule = db.query(Schedule).get(schedule_id)
         if not schedule or not schedule.enabled:
+            _logger.info("Schedule %s skipped (not found or disabled)", schedule_id)
             return
 
         device_ids = schedule.device_ids or []
@@ -31,20 +34,34 @@ async def _scheduled_backup_runner(schedule_id: int):
             device_ids = [d.id for d in devices]
 
         if not device_ids:
+            _logger.warning("Schedule '%s' (id=%d) has no devices to back up", schedule.name, schedule_id)
             return
 
-        from datetime import datetime, timezone
-        schedule.last_run_at = datetime.now(timezone.utc)
-        db.commit()
+        # Capture values before running the job so session stays open
+        job_name = schedule.name
+        destination_ids = schedule.destination_ids
+        engine_override = schedule.backup_engine
+        sid = schedule.id
+
+        _logger.info("Schedule '%s' firing for %d devices", job_name, len(device_ids))
 
         await run_backup_job(
             db,
-            job_name=schedule.name,
+            job_name=job_name,
             device_ids=device_ids,
-            destination_ids=schedule.destination_ids,
-            engine_override=schedule.backup_engine,
-            schedule_id=schedule.id,
+            destination_ids=destination_ids,
+            engine_override=engine_override,
+            schedule_id=sid,
         )
+
+        # Update last_run_at AFTER the job completes
+        from datetime import datetime, timezone
+        schedule = db.query(Schedule).get(schedule_id)
+        if schedule:
+            schedule.last_run_at = datetime.now(timezone.utc)
+            db.commit()
+    except Exception as e:
+        _logger.error("Schedule %d failed: %s", schedule_id, e)
     finally:
         db.close()
 
@@ -87,6 +104,12 @@ async def add_schedule(
     destination_ids: list[int] = Form(None),
     db: Session = Depends(get_db),
 ):
+    # Validate cron expression before persisting
+    try:
+        validate_cron_expression(cron_expression)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     schedule = Schedule(
         name=name,
         cron_expression=cron_expression,
@@ -139,6 +162,12 @@ async def edit_schedule(
     schedule = db.query(Schedule).get(schedule_id)
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found")
+
+    # Validate cron expression before persisting
+    try:
+        validate_cron_expression(cron_expression)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     schedule.name = name
     schedule.cron_expression = cron_expression

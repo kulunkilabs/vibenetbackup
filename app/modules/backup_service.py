@@ -161,7 +161,10 @@ async def _save_binary_local(
         if dest and dest.config_json:
             base_dir = dest.config_json.get("path", base_dir)
 
-    device_dir = os.path.join(base_dir, device.hostname)
+    safe_hostname = os.path.basename(device.hostname.replace("\\", "/")) or "unknown"
+    device_dir = os.path.join(base_dir, safe_hostname)
+    if not os.path.realpath(device_dir).startswith(os.path.realpath(base_dir)):
+        raise ValueError(f"Invalid hostname for path: {device.hostname}")
     os.makedirs(device_dir, exist_ok=True)
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")

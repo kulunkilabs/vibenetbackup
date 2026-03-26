@@ -56,7 +56,7 @@ def rate_limit(requests_per_minute: int = 60):
             
             if request:
                 # Use client IP as key
-                client_ip = request.client.host if request.client else "unknown"
+                client_ip = request.client.host if request.client else request.headers.get("x-forwarded-for", "").split(",")[0].strip() or "unknown"
                 if not limiter.is_allowed(client_ip):
                     raise HTTPException(
                         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -74,7 +74,7 @@ def get_rate_limit_dependency(requests_per_minute: int = 60):
     limiter = RateLimiter(max_requests=requests_per_minute, window_seconds=60)
     
     def check_rate_limit(request: Request):
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = request.client.host if request.client else request.headers.get("x-forwarded-for", "").split(",")[0].strip() or "unknown"
         if not limiter.is_allowed(client_ip):
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
