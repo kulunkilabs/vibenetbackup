@@ -37,8 +37,8 @@
                         <span class="badge bg-secondary">No</span>
                         {% endif %}
                     </td>
-                    <td>{{ s.last_run_at.strftime('%Y-%m-%d %H:%M') if s.last_run_at else 'Never' }}</td>
-                    <td>{{ s.next_run_at.strftime('%Y-%m-%d %H:%M') if s.next_run_at else '-' }}</td>
+                    <td>{{ s.last_run_at|localtime('%Y-%m-%d %H:%M') if s.last_run_at else 'Never' }}</td>
+                    <td>{{ s.next_run_at|localtime('%Y-%m-%d %H:%M') if s.next_run_at else '-' }}</td>
                     <td>
                         <form action="/jobs/{{ s.id }}/run" method="post" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-outline-success" title="Run Now"><i class="bi bi-play-fill"></i></button>

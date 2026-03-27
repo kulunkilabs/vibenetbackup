@@ -35,8 +35,8 @@
                 <tr>
                     <td><a href="/jobs/history/{{ run.id }}">{{ run.id }}</a></td>
                     <td>{{ run.job_name }}</td>
-                    <td>{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') if run.started_at else '-' }}</td>
-                    <td>{{ run.completed_at.strftime('%Y-%m-%d %H:%M:%S') if run.completed_at else '-' }}</td>
+                    <td>{{ run.started_at|localtime if run.started_at else '-' }}</td>
+                    <td>{{ run.completed_at|localtime if run.completed_at else '-' }}</td>
                     <td>
                         {% if run.status.value == 'completed' %}
                         <span class="badge bg-success">Completed</span>

@@ -65,7 +65,7 @@
                             {% for b in recent_backups %}
                             <tr>
                                 <td><a href="/backups/{{ b.id }}">{{ b.device_hostname or 'Unknown' }}</a></td>
-                                <td>{{ b.timestamp.strftime('%Y-%m-%d %H:%M') if b.timestamp else '-' }}</td>
+                                <td>{{ b.timestamp|localtime('%Y-%m-%d %H:%M') }}</td>
                                 <td>
                                     {% if b.status.value == 'success' %}
                                     <span class="badge bg-success">Success</span>

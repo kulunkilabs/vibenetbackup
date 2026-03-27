@@ -35,7 +35,7 @@
             <div class="card-body">
                 <table class="table table-sm mb-0">
                     <tr><td class="text-muted">Device</td><td><a href="/devices/{{ backup.device_id }}">{{ device.hostname if device else 'Unknown' }}</a></td></tr>
-                    <tr><td class="text-muted">Timestamp</td><td>{{ backup.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') if backup.timestamp else '-' }}</td></tr>
+                    <tr><td class="text-muted">Timestamp</td><td>{{ backup.timestamp|localtime }}</td></tr>
                     <tr>
                         <td class="text-muted">Status</td>
                         <td>

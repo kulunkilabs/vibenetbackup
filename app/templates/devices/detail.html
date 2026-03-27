@@ -48,7 +48,7 @@
                     <tbody>
                         {% for b in backups %}
                         <tr>
-                            <td><a href="/backups/{{ b.id }}">{{ b.timestamp.strftime('%Y-%m-%d %H:%M') if b.timestamp else '-' }}</a></td>
+                            <td><a href="/backups/{{ b.id }}">{{ b.timestamp|localtime('%Y-%m-%d %H:%M') }}</a></td>
                             <td>
                                 {% if b.status.value == 'success' %}
                                 <span class="badge bg-success">OK</span>

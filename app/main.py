@@ -239,6 +239,22 @@ app.state.templates = Jinja2Templates(directory=templates_dir)
 # Make version available globally in templates
 app.state.templates.env.globals["app_version"] = VERSION
 
+# Jinja2 filter: convert UTC datetime to local timezone (from TZ env var)
+from datetime import timezone as _tz
+from zoneinfo import ZoneInfo as _ZI
+
+_LOCAL_TZ = _ZI(os.environ.get("TZ", "America/Chicago"))
+
+def _localtime(dt, fmt="%Y-%m-%d %H:%M:%S"):
+    """Convert a UTC datetime to local time and format it."""
+    if dt is None:
+        return "-"
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_tz.utc)
+    return dt.astimezone(_LOCAL_TZ).strftime(fmt)
+
+app.state.templates.env.filters["localtime"] = _localtime
+
 # Include routers
 from app.routers import dashboard, devices, credentials, backups, jobs, destinations, api, groups, notifications
 

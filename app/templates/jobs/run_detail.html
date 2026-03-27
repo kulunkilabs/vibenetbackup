@@ -14,8 +14,8 @@
             <div class="card-body">
                 <table class="table table-sm mb-0">
                     <tr><td class="text-muted">Job Name</td><td>{{ run.job_name }}</td></tr>
-                    <tr><td class="text-muted">Started</td><td>{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') if run.started_at else '-' }}</td></tr>
-                    <tr><td class="text-muted">Completed</td><td>{{ run.completed_at.strftime('%Y-%m-%d %H:%M:%S') if run.completed_at else '-' }}</td></tr>
+                    <tr><td class="text-muted">Started</td><td>{{ run.started_at|localtime if run.started_at else '-' }}</td></tr>
+                    <tr><td class="text-muted">Completed</td><td>{{ run.completed_at|localtime if run.completed_at else '-' }}</td></tr>
                     <tr>
                         <td class="text-muted">Status</td>
                         <td>

@@ -76,7 +76,7 @@
                     <td><input type="checkbox" name="backup_ids" value="{{ b.id }}" class="form-check-input row-check"></td>
                     <td>{{ b.id }}</td>
                     <td><a href="/devices/{{ b.device_id }}">{{ b.device_hostname }}</a></td>
-                    <td>{{ b.timestamp.strftime('%Y-%m-%d %H:%M:%S') if b.timestamp else '-' }}</td>
+                    <td>{{ b.timestamp|localtime }}</td>
                     <td>
                         {% if b.status.value == 'success' %}
                         <span class="badge bg-success">Success</span>
