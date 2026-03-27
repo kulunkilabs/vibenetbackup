@@ -281,6 +281,13 @@ async def run_backup_job(
         job_name, job_run.devices_success, job_run.devices_total, job_run.devices_failed,
     )
 
+    # Run retention sweep after job
+    try:
+        from app.modules.retention.manager import run_retention_sweep
+        await run_retention_sweep(db)
+    except Exception as e:
+        logger.error("Post-job retention sweep failed: %s", e)
+
     # Send notifications
     try:
         from app.modules.notifications import send_job_notifications

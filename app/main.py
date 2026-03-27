@@ -45,6 +45,9 @@ async def lifespan(app: FastAPI):
     # Start scheduler
     start_scheduler()
 
+    # Register daily maintenance job (retention, cleanup, VACUUM)
+    _register_maintenance_job()
+
     # Re-register any existing schedules
     _reload_schedules()
 
@@ -135,6 +138,24 @@ def _ensure_default_group():
             logger.info("Created default group")
     finally:
         db.close()
+
+
+def _register_maintenance_job():
+    """Register daily DB maintenance (retention sweep, history purge, VACUUM)."""
+    from app.modules.scheduler.manager import scheduler
+    from apscheduler.triggers.cron import CronTrigger
+
+    async def _run_maintenance():
+        from app.modules.maintenance import run_maintenance
+        await run_maintenance()
+
+    scheduler.add_job(
+        _run_maintenance,
+        trigger=CronTrigger(hour=3, minute=30),  # 3:30 AM daily
+        id="db_maintenance",
+        replace_existing=True,
+    )
+    logger.info("Registered daily maintenance job (03:30)")
 
 
 def _reload_schedules():

@@ -165,3 +165,13 @@ async def api_retention_sweep(db: Session = Depends(get_db)):
     from app.modules.retention.manager import run_retention_sweep
     results = await run_retention_sweep(db)
     return results
+
+
+# --- Maintenance ---
+
+@router.post("/maintenance/run")
+async def api_run_maintenance():
+    """Run full DB maintenance: retention, cleanup, VACUUM."""
+    from app.modules.maintenance import run_maintenance
+    results = await run_maintenance()
+    return results
