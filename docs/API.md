@@ -121,6 +121,17 @@ curl -u "$AUTH" -X POST http://localhost:5005/api/v1/retention/sweep
 
 ---
 
+## Maintenance
+
+```bash
+# Run full DB maintenance (retention sweep, stale cleanup, history purge, VACUUM)
+curl -u "$AUTH" -X POST http://localhost:5005/api/v1/maintenance/run
+```
+
+This runs automatically daily at 3:30 AM. Use this endpoint to trigger it manually.
+
+---
+
 ## Job History
 
 ```bash

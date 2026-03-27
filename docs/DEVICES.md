@@ -15,6 +15,7 @@
 | QuantaMesh | `quanta_mesh` | `show running-config` |
 | Arista EOS | `arista_eos` | `show running-config` |
 | Juniper JunOS | `juniper_junos` | `show configuration \| display set` |
+| MikroTik RouterOS | `mikrotik_routeros` | `/export` |
 | pfSense | `pfsense` | API or `cat /cf/conf/config.xml` via SSH |
 | OPNsense | `opnsense` | API or `cat /conf/config.xml` via SSH |
 | Proxmox VE | `proxmox` | SFTP — /etc/pve, /etc/network, and 80+ paths |
@@ -170,6 +171,34 @@ Collects Proxmox VE configuration files over SSH/SFTP and stores them as a tar.g
 - Missing paths are silently skipped (not all systems have all files)
 - Change detection via SHA256 hash of the full archive
 - Archives stored in the backup directory under `<hostname>/`
+
+---
+
+## MikroTik RouterOS
+
+MikroTik routers are backed up via SSH using the `/export` command, which outputs the full RouterOS configuration.
+
+### Setup
+
+1. **Add credential:** SSH username and password (no enable secret needed)
+2. **Add device:** Type: `MikroTik RouterOS`, Engine: `Netmiko (SSH)`, Port: 22
+3. **Run backup** — fetches the full config via `/export`
+
+### Notes
+
+- Uses Netmiko's native `mikrotik_routeros` SSH driver
+- No enable secret required — MikroTik does not use privileged exec mode
+- SSH must be enabled on the router (`/ip service enable ssh`)
+- The backup user needs at least `read` and `sensitive` policies to export the full config
+- For RouterOS v7+, ensure the user has the `rest-api` policy if using API access elsewhere
+
+### Troubleshooting
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| **Authentication failed** | Wrong credentials or SSH disabled | Verify SSH is enabled: `/ip service print` |
+| **Timeout** | Firewall blocking port 22 | Check `/ip firewall filter` rules |
+| **Empty output** | User lacks permissions | Ensure user has `read` and `sensitive` policies |
 
 ---
 

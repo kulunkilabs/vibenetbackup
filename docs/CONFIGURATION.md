@@ -47,9 +47,76 @@ openssl rand -base64 32
 2. **Credentials** — Add SSH credentials for your devices (username + password or SSH key)
 3. **Devices** — Add devices manually or import from Oxidized
 4. **Test** — Click **Test All** to verify connectivity
-5. **Destinations** — Configure where backups are stored (local, Git, SMB)
+5. **Destinations** — Configure where backups are stored (local, Git, SMB); enable compression if desired
 6. **Schedule** — Create backup jobs with cron expressions
 7. **Retention** — Configure GFS retention policies per destination
+8. **Notifications** — Add Apprise notification channels for backup alerts
+
+---
+
+## Notifications (Apprise)
+
+VIBENetBackup uses [Apprise](https://github.com/caronc/apprise) for notifications. Configure channels at **Notifications** in the web UI.
+
+Each channel has:
+- **Apprise URL** — encrypted in the database (Fernet)
+- **On Success / On Failure** — choose when to notify
+- **Test button** — verify delivery before relying on it
+
+### Email Examples
+
+| Scenario | Apprise URL |
+|----------|-------------|
+| **Gmail** (app password) | `mailto://user:app-password@gmail.com?to=ops@company.com` |
+| **Outlook / M365** | `mailto://user:password@outlook.com?to=ops@company.com` |
+| **Corporate relay (port 25, no auth)** | `mailto://relay.company.local:25?from=backups@company.com&to=ops@company.com&smtp=relay.company.local` |
+| **SMTP with TLS (port 587)** | `mailtos://user:pass@smtp.company.com:587?from=backups@company.com&to=ops@company.com` |
+| **Multiple recipients** | `mailto://user:pass@gmail.com?to=a@co.com,b@co.com&cc=mgr@co.com` |
+
+### Other Services
+
+| Service | URL Format |
+|---------|-----------|
+| Slack | `slack://TokenA/TokenB/TokenC/` |
+| Discord | `discord://WebhookID/WebhookToken/` |
+| Telegram | `tgram://BotToken/ChatID/` |
+| Gotify | `gotify://hostname/token` |
+| Ntfy | `ntfy://topic/` |
+| Webhook (JSON) | `json://hostname/path` |
+
+See the [Apprise wiki](https://github.com/caronc/apprise/wiki) for 100+ supported services.
+
+---
+
+## Backup Compression
+
+Local and SMB destinations support optional gzip compression. Enable it in the destination form by checking the **Gzip backups** checkbox.
+
+When enabled:
+- Text config backups are saved as `.cfg.gz` instead of `.cfg`
+- Reduces disk usage significantly for large configs
+- The `latest` symlink updates to point to the compressed file
+
+---
+
+## Database Maintenance
+
+A daily maintenance job runs automatically at **3:30 AM** (container local time):
+
+| Task | Description |
+|------|-------------|
+| Retention sweep | Prunes old backup files per GFS policy |
+| Stale cleanup | Marks `in_progress` backups older than 1 hour as failed |
+| Job history purge | Deletes job run records older than 90 days |
+| Record purge | Removes pruned backup DB rows older than 90 days |
+| SQLite VACUUM | Reclaims disk space from deleted records |
+
+Retention also runs after every backup job.
+
+**Manual trigger:**
+```bash
+curl -u admin:password -X POST http://localhost:5005/api/v1/maintenance/run
+```
 
 ---
 

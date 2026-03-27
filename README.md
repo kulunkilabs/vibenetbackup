@@ -2,7 +2,7 @@
 
 Network device configuration backup manager with multi-engine support, automated scheduling, and retention policies.
 
-**Version:** 1.5.5 | **License:** MIT
+**Version:** 1.5.6 | **License:** MIT
 
 <p align="center">
   <img src="docs/screenshots/screensh_01.png" alt="VIBENetBackup Dashboard" width="900"/>
@@ -13,9 +13,11 @@ Network device configuration backup manager with multi-engine support, automated
 ## Features
 
 - **Multi-engine backup** — Netmiko (SSH), SCP, Oxidized REST API, pfSense/OPNsense API, Proxmox VE
-- **Multi-destination storage** — Local, Git (GitHub/Gitea/Forgejo), SMB/CIFS
+- **Multi-destination storage** — Local, Git (GitHub/Gitea/Forgejo), SMB/CIFS with optional gzip compression
 - **Automated scheduling** — Cron-based jobs with APScheduler
-- **Retention management** — Grandfather-Father-Son (GFS) rotation
+- **Retention management** — Grandfather-Father-Son (GFS) rotation with automatic daily maintenance
+- **Notifications** — Apprise-powered alerts (Slack, Discord, Telegram, email, 100+ services)
+- **Database maintenance** — Automated retention sweep, history purge, stale cleanup, SQLite VACUUM
 - **Change detection** — SHA256 hash comparison with unified diff viewer
 - **Web UI** — Bootstrap 5 dark theme with HTMX live updates
 - **REST API** — Full JSON API at `/api/v1/*`
@@ -84,6 +86,7 @@ Open `http://<your-server-ip>:5005` — default credentials are shown during ins
 | **Juniper** | JunOS |
 | **HP/Aruba** | ProCurve, Comware |
 | **Dell** | OS6, OS9, OS10, Force10 |
+| **MikroTik** | RouterOS (`/export`) |
 | **pfSense/OPNsense** | API backup |
 | **Proxmox VE** | SSH/SFTP config collection (90+ files, stored as tar.gz) |
 
@@ -104,6 +107,16 @@ Open `http://<your-server-ip>:5005` — default credentials are shown during ins
 ---
 
 ## Changelog
+
+### v1.5.6 (2026-03-27)
+- **Apprise notifications** — new Notifications tab with CRUD, encrypted URL storage, test button; supports Slack, Discord, Telegram, email (Gmail, Outlook, corporate SMTP relay), and 100+ services
+- **Backup compression** — optional gzip for Local and SMB destinations (`"compress": true` or checkbox in destination form)
+- **MikroTik RouterOS** support via Netmiko SSH (`/export`)
+- **Always save backups** — removed misleading "unchanged" status; every backup is now saved to disk
+- **Friendly destination form** — replaced raw JSON with proper form fields per destination type (local, SMB, Git) with dynamic auth method selection
+- **Database maintenance** — automated daily job at 3:30 AM: retention sweep, stale backup cleanup, job history purge (90 days), SQLite VACUUM
+- **Timezone fix** — all timestamps display in local time (from `TZ` env var) instead of UTC
+- **Email setup guide** — documentation for Gmail, Outlook, corporate relay (port 25 no auth), SMTP with TLS
 
 ### v1.5.5 (2026-03-23)
 - Backups page: search by device name, filter by status
