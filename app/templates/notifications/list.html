@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Notifications - VIBENetBackup{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-bell"></i> Notifications</h2>
+    <a href="/notifications/add" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Channel</a>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {% if channels %}
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Enabled</th>
+                    <th>On Success</th>
+                    <th>On Failure</th>
+                    <th>Created</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ch in channels %}
+                <tr>
+                    <td>{{ ch.name }}</td>
+                    <td>
+                        {% if ch.enabled %}
+                        <span class="badge bg-success">Yes</span>
+                        {% else %}
+                        <span class="badge bg-secondary">No</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if ch.on_success %}
+                        <span class="badge bg-success">Yes</span>
+                        {% else %}
+                        <span class="badge bg-secondary">No</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if ch.on_failure %}
+                        <span class="badge bg-danger">Yes</span>
+                        {% else %}
+                        <span class="badge bg-secondary">No</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted small">{{ ch.created_at.strftime('%Y-%m-%d') if ch.created_at else '-' }}</td>
+                    <td class="text-end">
+                        <span id="test-result-{{ ch.id }}"></span>
+                        <button class="btn btn-sm btn-outline-info"
+                                hx-post="/notifications/{{ ch.id }}/test"
+                                hx-target="#test-result-{{ ch.id }}"
+                                hx-swap="innerHTML">
+                            <i class="bi bi-send"></i> Test
+                        </button>
+                        <a href="/notifications/{{ ch.id }}/edit" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <form method="post" action="/notifications/{{ ch.id }}/delete" class="d-inline"
+                              onsubmit="return confirm('Delete notification channel {{ ch.name }}?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            No notification channels configured. <a href="/notifications/add">Add one</a> to get alerts on backup jobs.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header"><i class="bi bi-info-circle"></i> Supported Services</div>
+    <div class="card-body">
+        <p class="text-muted mb-2">VIBENetBackup uses <a href="https://github.com/caronc/apprise" target="_blank" rel="noopener">Apprise</a> for notifications. Add a channel with the appropriate URL for your service:</p>
+        <table class="table table-sm table-borderless mb-0">
+            <tbody>
+                <tr><td class="text-nowrap"><strong>Slack</strong></td><td><code>slack://TokenA/TokenB/TokenC/</code></td></tr>
+                <tr><td class="text-nowrap"><strong>Discord</strong></td><td><code>discord://WebhookID/WebhookToken/</code></td></tr>
+                <tr><td class="text-nowrap"><strong>Telegram</strong></td><td><code>tgram://BotToken/ChatID/</code></td></tr>
+                <tr><td class="text-nowrap"><strong>Email</strong></td><td><code>mailto://user:password@gmail.com</code></td></tr>
+                <tr><td class="text-nowrap"><strong>Gotify</strong></td><td><code>gotify://hostname/token</code></td></tr>
+                <tr><td class="text-nowrap"><strong>Ntfy</strong></td><td><code>ntfy://topic/</code></td></tr>
+                <tr><td class="text-nowrap"><strong>Pushover</strong></td><td><code>pover://UserKey@AppToken/</code></td></tr>
+                <tr><td class="text-nowrap"><strong>Webhook</strong></td><td><code>json://hostname/path</code></td></tr>
+            </tbody>
+        </table>
+        <p class="text-muted mt-2 mb-0"><small>See the <a href="https://github.com/caronc/apprise/wiki" target="_blank" rel="noopener">Apprise wiki</a> for 100+ supported services and URL formats.</small></p>
+    </div>
+</div>
+{% endblock %}

@@ -159,7 +159,7 @@ def _reload_schedules():
 app = FastAPI(
     title="VIBENetBackup",
     description="Network Device Configuration Backup Manager",
-    version="1.5.5",
+    version="1.5.6",
     lifespan=lifespan,
 )
 
@@ -240,7 +240,7 @@ app.state.templates = Jinja2Templates(directory=templates_dir)
 app.state.templates.env.globals["app_version"] = VERSION
 
 # Include routers
-from app.routers import dashboard, devices, credentials, backups, jobs, destinations, api, groups
+from app.routers import dashboard, devices, credentials, backups, jobs, destinations, api, groups, notifications
 
 app.include_router(dashboard.router)
 app.include_router(devices.router)
@@ -250,6 +250,7 @@ app.include_router(jobs.router)
 app.include_router(destinations.router)
 app.include_router(api.router)
 app.include_router(groups.router)
+app.include_router(notifications.router)
 
 
 # ── Login / Logout routes ─────────────────────────────────────────────

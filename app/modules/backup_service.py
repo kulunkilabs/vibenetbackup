@@ -91,29 +91,6 @@ async def _handle_binary_backup(
 
     config_hash = hashlib.sha256(file_bytes).hexdigest()
 
-    # Change detection
-    last_backup = (
-        db.query(Backup)
-        .filter(
-            Backup.device_id == device.id,
-            Backup.status == BackupStatus.success,
-            Backup.id != backup.id,
-        )
-        .order_by(Backup.timestamp.desc())
-        .first()
-    )
-    if last_backup and last_backup.config_hash == config_hash:
-        manifest = json.loads(last_backup.config_text) if last_backup.config_text else {}
-        backup.status = BackupStatus.unchanged
-        backup.config_hash = config_hash
-        backup.config_text = last_backup.config_text
-        backup.file_size = len(file_bytes)
-        backup.destination_path = manifest.get("path")
-        backup.destination_type = "local"
-        db.commit()
-        logger.info("Binary unchanged for %s (hash: %s...)", device.hostname, config_hash[:12])
-        return backup
-
     # Save file to local destination
     saved_path = await _save_binary_local(device, file_bytes, extension, destination_ids, db)
 
@@ -202,26 +179,6 @@ async def _handle_text_backup(
     """Save a text config backup (existing flow)."""
     config_hash = hashlib.sha256(config_text.encode()).hexdigest()
 
-    last_backup = (
-        db.query(Backup)
-        .filter(
-            Backup.device_id == device.id,
-            Backup.status == BackupStatus.success,
-            Backup.id != backup.id,
-        )
-        .order_by(Backup.timestamp.desc())
-        .first()
-    )
-
-    if last_backup and last_backup.config_hash == config_hash:
-        backup.status = BackupStatus.unchanged
-        backup.config_hash = config_hash
-        backup.config_text = config_text
-        backup.file_size = len(config_text)
-        db.commit()
-        logger.info("Config unchanged for %s (hash: %s...)", device.hostname, config_hash[:12])
-        return backup
-
     destinations = []
     if destination_ids:
         destinations = db.query(Destination).filter(
@@ -305,7 +262,7 @@ async def run_backup_job(
                 engine_override=engine_override,
                 job_run=job_run,
             )
-            if backup.status in (BackupStatus.success, BackupStatus.unchanged):
+            if backup.status == BackupStatus.success:
                 job_run.devices_success += 1
             else:
                 job_run.devices_failed += 1
@@ -323,4 +280,12 @@ async def run_backup_job(
         "Job '%s' complete: %d/%d success, %d failed",
         job_name, job_run.devices_success, job_run.devices_total, job_run.devices_failed,
     )
+
+    # Send notifications
+    try:
+        from app.modules.notifications import send_job_notifications
+        await send_job_notifications(db, job_run)
+    except Exception as e:
+        logger.error("Failed to send job notifications: %s", e)
+
     return job_run

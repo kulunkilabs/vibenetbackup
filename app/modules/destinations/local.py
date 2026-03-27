@@ -1,3 +1,4 @@
+import gzip
 import os
 import asyncio
 import logging
@@ -15,17 +16,25 @@ class LocalDestination(DestinationBackend):
 
     async def save(self, hostname: str, config_text: str, config: dict[str, Any]) -> str:
         base_dir = config.get("path", get_settings().BACKUP_DIR)
+        compress = config.get("compress", False)
         safe_hostname = os.path.basename(hostname.replace("\\", "/")) or "unknown"
         device_dir = os.path.join(base_dir, safe_hostname)
         os.makedirs(device_dir, exist_ok=True)
 
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
-        filename = f"{timestamp}.cfg"
-        filepath = os.path.join(device_dir, filename)
 
-        await asyncio.to_thread(self._write_file, filepath, config_text)
+        if compress:
+            filename = f"{timestamp}.cfg.gz"
+            filepath = os.path.join(device_dir, filename)
+            await asyncio.to_thread(self._write_compressed, filepath, config_text)
+            latest_name = "latest.cfg.gz"
+        else:
+            filename = f"{timestamp}.cfg"
+            filepath = os.path.join(device_dir, filename)
+            await asyncio.to_thread(self._write_file, filepath, config_text)
+            latest_name = "latest.cfg"
 
-        latest = os.path.join(device_dir, "latest.cfg")
+        latest = os.path.join(device_dir, latest_name)
         if os.path.islink(latest):
             os.unlink(latest)
         try:
@@ -39,6 +48,11 @@ class LocalDestination(DestinationBackend):
     @staticmethod
     def _write_file(path: str, content: str) -> None:
         with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+
+    @staticmethod
+    def _write_compressed(path: str, content: str) -> None:
+        with gzip.open(path, "wt", encoding="utf-8") as f:
             f.write(content)
 
     async def delete(self, path: str, config: dict[str, Any]) -> None:

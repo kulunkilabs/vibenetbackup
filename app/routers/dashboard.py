@@ -19,7 +19,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
 
     recent_backups = (
         db.query(Backup)
-        .filter(Backup.status.in_([BackupStatus.success, BackupStatus.failed, BackupStatus.unchanged]))
+        .filter(Backup.status.in_([BackupStatus.success, BackupStatus.failed]))
         .order_by(Backup.timestamp.desc())
         .limit(14)
         .all()

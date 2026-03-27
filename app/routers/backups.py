@@ -47,7 +47,7 @@ async def list_backups(
     query = db.query(Backup)
 
     # Filter by status
-    if status and status in ("success", "failed", "unchanged"):
+    if status and status in ("success", "failed"):
         query = query.filter(Backup.status == BackupStatus(status))
 
     # Search by device hostname
@@ -148,8 +148,6 @@ async def backup_now(device_id: int, request: Request, db: Session = Depends(get
         backup = await run_backup_for_device(db, device)
         if backup.status == BackupStatus.success:
             return HTMLResponse(f'<span class="badge bg-success">Backup OK ({backup.file_size} bytes)</span>')
-        elif backup.status == BackupStatus.unchanged:
-            return HTMLResponse('<span class="badge bg-info">Config unchanged</span>')
         else:
             return HTMLResponse(f'<span class="badge bg-danger">Failed: {backup.error_message}</span>')
     except Exception:
@@ -174,7 +172,7 @@ async def backup_detail(backup_id: int, request: Request, db: Session = Depends(
             .filter(
                 Backup.device_id == backup.device_id,
                 Backup.id < backup.id,
-                Backup.status.in_([BackupStatus.success, BackupStatus.unchanged]),
+                Backup.status == BackupStatus.success,
             )
             .order_by(Backup.timestamp.desc())
             .first()

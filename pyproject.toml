@@ -1,6 +1,6 @@
 [project]
 name = "vibenetbackup"
-version = "1.5.5"
+version = "1.5.6"
 description = "Network device configuration backup manager"
 readme = "README.md"
 license = {text = "MIT"}
@@ -23,6 +23,7 @@ dependencies = [
     "jinja2",
     "cryptography",
     "python-dotenv",
+    "apprise>=1.9",
 ]
 
 [project.scripts]

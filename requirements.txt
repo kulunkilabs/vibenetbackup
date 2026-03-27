@@ -15,3 +15,4 @@ jinja2
 cryptography
 python-dotenv
 httpx
+apprise>=1.9

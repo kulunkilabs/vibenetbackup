@@ -1,4 +1,5 @@
 import asyncio
+import gzip
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -17,13 +18,16 @@ class SMBDestination(DestinationBackend):
         username = config.get("username", "")
         password = config.get("password", "")
         base_path = config.get("base_path", "backups")
+        compress = config.get("compress", False)
 
         safe_hostname = hostname.replace("\\", "/").split("/")[-1] or "unknown"
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
         remote_dir = f"{base_path}/{safe_hostname}"
-        remote_path = f"{remote_dir}/{timestamp}.cfg"
+        ext = ".cfg.gz" if compress else ".cfg"
+        remote_path = f"{remote_dir}/{timestamp}{ext}"
 
         def _smb_write():
+            import os
             import smbclient
             smbclient.register_session(server, username=username, password=password)
 
@@ -36,12 +40,16 @@ class SMBDestination(DestinationBackend):
             except OSError:
                 pass  # Directory may already exist
 
-            with smbclient.open_file(unc_path, mode="w", encoding="utf-8") as f:
-                f.write(config_text)
+            if compress:
+                data = gzip.compress(config_text.encode("utf-8"))
+                with smbclient.open_file(unc_path, mode="wb") as f:
+                    f.write(data)
+            else:
+                with smbclient.open_file(unc_path, mode="w", encoding="utf-8") as f:
+                    f.write(config_text)
 
             return unc_path
 
-        import os
         path = await asyncio.to_thread(_smb_write)
         logger.info("SMB: saved backup to %s", path)
         return path

@@ -71,8 +71,6 @@
                                     <span class="badge bg-success">Success</span>
                                     {% elif b.status.value == 'failed' %}
                                     <span class="badge bg-danger">Failed</span>
-                                    {% elif b.status.value == 'unchanged' %}
-                                    <span class="badge bg-secondary">Unchanged</span>
                                     {% else %}
                                     <span class="badge bg-warning">{{ b.status.value }}</span>
                                     {% endif %}

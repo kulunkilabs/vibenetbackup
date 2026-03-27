@@ -41,7 +41,6 @@
                         <td>
                             {% if backup.status.value == 'success' %}<span class="badge bg-success">Success</span>
                             {% elif backup.status.value == 'failed' %}<span class="badge bg-danger">Failed</span>
-                            {% elif backup.status.value == 'unchanged' %}<span class="badge bg-secondary">Unchanged</span>
                             {% else %}<span class="badge bg-warning">{{ backup.status.value }}</span>
                             {% endif %}
                         </td>
