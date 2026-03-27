@@ -14,6 +14,17 @@ from app.modules.destinations import get_destination
 logger = logging.getLogger(__name__)
 
 
+def _resolve_group_profile(db: Session, device: Device):
+    """Look up the device's group profile and return (destination_ids, engine) defaults."""
+    from app.models.group import Group
+    if not device.group:
+        return None, None
+    group = db.query(Group).filter(Group.name == device.group).first()
+    if not group:
+        return None, None
+    return group.destination_ids, group.backup_engine
+
+
 async def run_backup_for_device(
     db: Session,
     device: Device,
@@ -22,7 +33,11 @@ async def run_backup_for_device(
     job_run: JobRun | None = None,
 ) -> Backup:
     """Run a single backup for one device. Returns the Backup record."""
-    engine_name = engine_override or device.backup_engine
+    # Resolve group profile defaults (explicit params take priority)
+    group_dest_ids, group_engine = _resolve_group_profile(db, device)
+    if destination_ids is None and group_dest_ids:
+        destination_ids = group_dest_ids
+    engine_name = engine_override or group_engine or device.backup_engine
     engine = get_engine(engine_name)
 
     credential = device.credential

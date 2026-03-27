@@ -41,3 +41,15 @@ def _apply_column_migrations() -> None:
         if "group" not in cred_cols:
             conn.execute(text("ALTER TABLE credentials ADD COLUMN \"group\" VARCHAR(100) DEFAULT 'default'"))
             conn.commit()
+
+        # v1.6: group profile columns
+        if "groups" in inspector.get_table_names():
+            group_cols = {c["name"] for c in inspector.get_columns("groups")}
+            for col_name, col_def in [
+                ("destination_ids", "TEXT"),        # JSON stored as TEXT in SQLite
+                ("backup_engine", "VARCHAR(50)"),
+                ("notification_ids", "TEXT"),
+            ]:
+                if col_name not in group_cols:
+                    conn.execute(text(f'ALTER TABLE groups ADD COLUMN "{col_name}" {col_def}'))
+            conn.commit()

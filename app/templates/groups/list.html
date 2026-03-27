@@ -21,6 +21,38 @@
                         <label class="form-label">Description <span class="text-muted">(optional)</span></label>
                         <input type="text" name="description" class="form-control" placeholder="Short description">
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Engine Override <span class="text-muted">(optional)</span></label>
+                        <select name="backup_engine" class="form-select">
+                            {% for val, label in engines %}
+                            <option value="{{ val }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Default Destinations</label>
+                        {% for dest in destinations %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="destination_ids" value="{{ dest.id }}" id="add-dest-{{ dest.id }}">
+                            <label class="form-check-label" for="add-dest-{{ dest.id }}">
+                                {{ dest.name }} <small class="text-muted">({{ dest.dest_type.value }})</small>
+                            </label>
+                        </div>
+                        {% else %}
+                        <div class="text-muted small">No destinations configured.</div>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notifications <span class="text-muted">(optional)</span></label>
+                        {% for notif in notifications %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="notification_ids" value="{{ notif.id }}" id="add-notif-{{ notif.id }}">
+                            <label class="form-check-label" for="add-notif-{{ notif.id }}">{{ notif.name }}</label>
+                        </div>
+                        {% else %}
+                        <div class="text-muted small">No notifications configured.</div>
+                        {% endfor %}
+                    </div>
                     <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg"></i> Add Group</button>
                 </form>
             </div>
@@ -38,17 +70,46 @@
                         <tr>
                             <th>Name</th>
                             <th>Description</th>
-                            <th>Created</th>
+                            <th>Engine</th>
+                            <th>Destinations</th>
+                            <th>Notifications</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for g in groups %}
                         <tr>
-                            <td><span class="badge bg-secondary fs-6">{{ g.name }}</span></td>
+                            <td>
+                                <a href="/groups/{{ g.id }}/edit" class="text-decoration-none">
+                                    <span class="badge bg-secondary fs-6">{{ g.name }}</span>
+                                </a>
+                            </td>
                             <td class="text-muted">{{ g.description or '—' }}</td>
-                            <td class="text-muted small">{{ g.created_at.strftime('%Y-%m-%d') if g.created_at else '—' }}</td>
+                            <td>
+                                {% if g.backup_engine %}
+                                <span class="badge bg-info text-dark">{{ g.backup_engine }}</span>
+                                {% else %}
+                                <span class="text-muted">device default</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% for dn in g.dest_names %}
+                                <span class="badge bg-dark">{{ dn }}</span>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% for nn in g.notif_names %}
+                                <span class="badge bg-dark">{{ nn }}</span>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endfor %}
+                            </td>
                             <td class="text-end">
+                                <a href="/groups/{{ g.id }}/edit" class="btn btn-sm btn-outline-light me-1">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
                                 {% if g.name != 'default' %}
                                 <form method="post" action="/groups/{{ g.id }}/delete" class="d-inline"
                                       onsubmit="return confirm('Delete group {{ g.name }}? Devices will keep the name but it won\'t appear in dropdowns.')">

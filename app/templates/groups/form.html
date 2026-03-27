@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Edit Group - VIBENetBackup{% endblock %}
+
+{% block content %}
+<h2><i class="bi bi-collection"></i> Edit Group: {{ group.name }}</h2>
+
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="post" action="/groups/{{ group.id }}/edit">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Name</label>
+                    <input type="text" name="name" class="form-control" value="{{ group.name }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Description <span class="text-muted">(optional)</span></label>
+                    <input type="text" name="description" class="form-control" value="{{ group.description or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Engine Override <span class="text-muted">(optional)</span></label>
+                    <select name="backup_engine" class="form-select">
+                        {% for val, label in engines %}
+                        <option value="{{ val }}" {{ 'selected' if group.backup_engine == val else '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">Overrides the per-device engine for all devices in this group</div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Default Destinations</label>
+                    <div class="row g-2">
+                        {% for dest in destinations %}
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="destination_ids" value="{{ dest.id }}" id="dest-{{ dest.id }}"
+                                    {{ 'checked' if group.destination_ids and dest.id in group.destination_ids else '' }}>
+                                <label class="form-check-label" for="dest-{{ dest.id }}">
+                                    {{ dest.name }} <small class="text-muted">({{ dest.dest_type.value }})</small>
+                                </label>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="col-12 text-muted">No destinations configured. <a href="/destinations/add">Add one</a>.</div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-text">Devices in this group will back up to these destinations by default</div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Notification Channels <span class="text-muted">(optional)</span></label>
+                    <div class="row g-2">
+                        {% for notif in notifications %}
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="notification_ids" value="{{ notif.id }}" id="notif-{{ notif.id }}"
+                                    {{ 'checked' if group.notification_ids and notif.id in group.notification_ids else '' }}>
+                                <label class="form-check-label" for="notif-{{ notif.id }}">
+                                    {{ notif.name }}
+                                </label>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="col-12 text-muted">No notification channels configured.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Save Changes</button>
+                <a href="/groups" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
