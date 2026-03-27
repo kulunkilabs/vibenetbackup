@@ -17,7 +17,13 @@
                     <input type="text" name="apprise_url" class="form-control font-monospace"
                            placeholder="{{ '(unchanged)' if channel else 'slack://TokenA/TokenB/TokenC/' }}"
                            {{ '' if channel else 'required' }}>
-                    <div class="form-text">The notification service URL. See <a href="https://github.com/caronc/apprise/wiki" target="_blank" rel="noopener">Apprise docs</a> for formats.</div>
+                    <div class="form-text">
+                        Examples:
+                        <code>mailto://user:app-pass@gmail.com?to=ops@co.com</code> |
+                        <code>mailto://relay.co.local:25?from=backup@co.com&to=ops@co.com&smtp=relay.co.local</code> |
+                        <code>slack://TokenA/TokenB/TokenC/</code>
+                        <br>See the <a href="/notifications">Notifications page</a> for full email guide or <a href="https://github.com/caronc/apprise/wiki" target="_blank" rel="noopener">Apprise docs</a> for all services.
+                    </div>
                 </div>
                 <div class="col-md-3">
                     <div class="form-check mt-4">

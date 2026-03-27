@@ -86,7 +86,6 @@
                 <tr><td class="text-nowrap"><strong>Slack</strong></td><td><code>slack://TokenA/TokenB/TokenC/</code></td></tr>
                 <tr><td class="text-nowrap"><strong>Discord</strong></td><td><code>discord://WebhookID/WebhookToken/</code></td></tr>
                 <tr><td class="text-nowrap"><strong>Telegram</strong></td><td><code>tgram://BotToken/ChatID/</code></td></tr>
-                <tr><td class="text-nowrap"><strong>Email</strong></td><td><code>mailto://user:password@gmail.com</code></td></tr>
                 <tr><td class="text-nowrap"><strong>Gotify</strong></td><td><code>gotify://hostname/token</code></td></tr>
                 <tr><td class="text-nowrap"><strong>Ntfy</strong></td><td><code>ntfy://topic/</code></td></tr>
                 <tr><td class="text-nowrap"><strong>Pushover</strong></td><td><code>pover://UserKey@AppToken/</code></td></tr>
@@ -94,6 +93,30 @@
             </tbody>
         </table>
         <p class="text-muted mt-2 mb-0"><small>See the <a href="https://github.com/caronc/apprise/wiki" target="_blank" rel="noopener">Apprise wiki</a> for 100+ supported services and URL formats.</small></p>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header"><i class="bi bi-envelope"></i> Email Setup Guide</div>
+    <div class="card-body">
+        <h6>Gmail / Google Workspace</h6>
+        <p class="text-muted small mb-1">Requires an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">App Password</a> (2FA must be enabled). Apprise auto-detects Gmail SMTP settings.</p>
+        <pre class="bg-dark p-2 rounded mb-3"><code>mailto://youruser:app-password@gmail.com?to=recipient@example.com</code></pre>
+
+        <h6>Outlook / Microsoft 365</h6>
+        <p class="text-muted small mb-1">Use an app password or your regular credentials if SMTP AUTH is enabled by your admin.</p>
+        <pre class="bg-dark p-2 rounded mb-3"><code>mailto://youruser:password@outlook.com?to=recipient@example.com</code></pre>
+
+        <h6>Company SMTP Relay (no auth, port 25)</h6>
+        <p class="text-muted small mb-1">Many corporate environments run an internal relay that accepts mail without authentication. Use <code>mailto://</code> (no encryption) and specify the relay host with <code>smtp=</code>.</p>
+        <pre class="bg-dark p-2 rounded mb-3"><code>mailto://relay.company.local:25?from=vibenetbackup@company.com&to=ops@company.com&smtp=relay.company.local</code></pre>
+
+        <h6>Company SMTP with TLS (port 587)</h6>
+        <p class="text-muted small mb-1">Use <code>mailtos://</code> for STARTTLS on port 587.</p>
+        <pre class="bg-dark p-2 rounded mb-3"><code>mailtos://user:password@smtp.company.com:587?from=backups@company.com&to=ops@company.com</code></pre>
+
+        <h6>Multiple Recipients</h6>
+        <pre class="bg-dark p-2 rounded mb-0"><code>mailto://user:pass@gmail.com?to=admin@co.com,ops@co.com&cc=manager@co.com</code></pre>
     </div>
 </div>
 {% endblock %}
