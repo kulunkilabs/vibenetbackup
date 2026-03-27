@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Edit' if destination else 'Add' }} Destination - VIBENetBackup{% endblock %}
 
+{% set cfg = destination.config_json or {} if destination else {} %}
+
 {% block content %}
 <h2><i class="bi bi-folder2-open"></i> {{ 'Edit' if destination else 'Add' }} Destination</h2>
 
@@ -8,44 +10,23 @@
     <div class="card-body">
         <form method="post" action="{{ '/destinations/' ~ destination.id ~ '/edit' if destination else '/destinations/add' }}">
             <div class="row g-3">
+                <!-- Common fields -->
                 <div class="col-md-6">
                     <label class="form-label">Name</label>
                     <input type="text" name="name" class="form-control" value="{{ destination.name if destination else '' }}" required>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Type</label>
                     <select name="dest_type" class="form-select" id="dest-type-select">
                         {% for dt in dest_types %}
-                        <option value="{{ dt.value }}" {{ 'selected' if destination and destination.dest_type == dt else '' }}>{{ dt.value }}</option>
+                        <option value="{{ dt.value }}" {{ 'selected' if destination and destination.dest_type == dt else '' }}>
+                            {{ {'local': 'Local Storage', 'smb': 'SMB/CIFS Share', 'git': 'Git Repository', 'github': 'GitHub', 'gitea': 'Gitea', 'forgejo': 'Forgejo'}.get(dt.value, dt.value) }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-12">
-                    <label class="form-label">Configuration (JSON)</label>
-                    <textarea name="config_json" class="form-control font-monospace" rows="6" id="config-json">{{ destination.config_json|tojson(indent=2) if destination and destination.config_json else '{}' }}</textarea>
-                    <div class="form-text" id="config-help">
-                        <strong>Local:</strong> <code>{"path": "./backups", "compress": true}</code><br>
-                        <strong>Git (token):</strong> <code>{"repo_path": "./repos/configs", "remote_url": "https://github.com/org/repo.git", "branch": "main", "auth_method": "token", "token": "ghp_..."}</code><br>
-                        <strong>Git (SSH):</strong> <code>{"repo_path": "./repos/configs", "remote_url": "git@github.com:org/repo.git", "branch": "main", "auth_method": "ssh", "ssh_key_path": "/app/ssh_keys/id_ed25519"}</code><br>
-                        <strong>Git (user/pass):</strong> <code>{"repo_path": "./repos/configs", "remote_url": "https://gitea.local/org/repo.git", "branch": "main", "auth_method": "password", "username": "...", "password": "..."}</code><br>
-                        <strong>SMB:</strong> <code>{"server": "nas", "share": "backups", "username": "...", "password": "...", "base_path": "network", "compress": true}</code><br>
-                        <small class="text-muted">Set <code>"compress": true</code> on Local or SMB destinations to gzip backup files (.cfg.gz)</small>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Retention: Daily</label>
-                    <input type="number" name="retention_daily" class="form-control" value="{{ destination.retention_config.get('daily', 14) if destination and destination.retention_config else 14 }}">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Retention: Weekly</label>
-                    <input type="number" name="retention_weekly" class="form-control" value="{{ destination.retention_config.get('weekly', 6) if destination and destination.retention_config else 6 }}">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Retention: Monthly</label>
-                    <input type="number" name="retention_monthly" class="form-control" value="{{ destination.retention_config.get('monthly', 12) if destination and destination.retention_config else 12 }}">
-                </div>
                 {% if destination %}
-                <div class="col-md-4">
+                <div class="col-md-2">
                     <label class="form-label">Enabled</label>
                     <select name="enabled" class="form-select">
                         <option value="true" {{ 'selected' if destination.enabled else '' }}>Yes</option>
@@ -54,11 +35,169 @@
                 </div>
                 {% endif %}
             </div>
-            <div class="mt-3">
+
+            <hr class="my-3">
+
+            <!-- ── Local fields ── -->
+            <div id="fields-local" class="dest-fields">
+                <h6 class="text-muted mb-3"><i class="bi bi-hdd"></i> Local Storage Settings</h6>
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label">Backup Path</label>
+                        <input type="text" name="local_path" class="form-control" value="{{ cfg.get('path', './backups') }}" placeholder="./backups">
+                        <div class="form-text">Directory where backup files are stored</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Compression</label>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" name="local_compress" value="1" id="local-compress"
+                                   {{ 'checked' if cfg.get('compress') else '' }}>
+                            <label class="form-check-label" for="local-compress">Gzip backups (.cfg.gz)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── SMB fields ── -->
+            <div id="fields-smb" class="dest-fields" style="display:none">
+                <h6 class="text-muted mb-3"><i class="bi bi-hdd-network"></i> SMB/CIFS Share Settings</h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Server</label>
+                        <input type="text" name="smb_server" class="form-control" value="{{ cfg.get('server', '') }}" placeholder="nas.local or 192.168.1.100">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Share Name</label>
+                        <input type="text" name="smb_share" class="form-control" value="{{ cfg.get('share', '') }}" placeholder="backups">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Base Path</label>
+                        <input type="text" name="smb_base_path" class="form-control" value="{{ cfg.get('base_path', 'backups') }}" placeholder="backups">
+                        <div class="form-text">Subfolder inside the share</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="smb_username" class="form-control" value="{{ cfg.get('username', '') }}" placeholder="backup_user">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Password</label>
+                        <input type="password" name="smb_password" class="form-control" value="{{ cfg.get('password', '') }}" placeholder="{{ '(unchanged)' if destination and cfg.get('password') else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Compression</label>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" name="smb_compress" value="1" id="smb-compress"
+                                   {{ 'checked' if cfg.get('compress') else '' }}>
+                            <label class="form-check-label" for="smb-compress">Gzip backups (.cfg.gz)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Git fields (shared by git/github/gitea/forgejo) ── -->
+            <div id="fields-git" class="dest-fields" style="display:none">
+                <h6 class="text-muted mb-3"><i class="bi bi-git"></i> Git Repository Settings</h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Remote URL</label>
+                        <input type="text" name="git_remote_url" class="form-control" value="{{ cfg.get('remote_url', '') }}" placeholder="https://github.com/org/repo.git">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Branch</label>
+                        <input type="text" name="git_branch" class="form-control" value="{{ cfg.get('branch', 'main') }}" placeholder="main">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Local Repo Path</label>
+                        <input type="text" name="git_repo_path" class="form-control" value="{{ cfg.get('repo_path', './repos/configs') }}" placeholder="./repos/configs">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Auth Method</label>
+                        <select name="git_auth_method" class="form-select" id="git-auth-select">
+                            <option value="token" {{ 'selected' if cfg.get('auth_method') == 'token' else '' }}>Token</option>
+                            <option value="ssh" {{ 'selected' if cfg.get('auth_method') == 'ssh' else '' }}>SSH Key</option>
+                            <option value="password" {{ 'selected' if cfg.get('auth_method') == 'password' else '' }}>Username / Password</option>
+                        </select>
+                    </div>
+                    <div class="col-md-9" id="git-token-field">
+                        <label class="form-label">Token</label>
+                        <input type="password" name="git_token" class="form-control" value="{{ cfg.get('token', '') }}" placeholder="{{ '(unchanged)' if destination and cfg.get('token') else 'ghp_... or personal access token' }}">
+                    </div>
+                    <div class="col-md-9" id="git-ssh-field" style="display:none">
+                        <label class="form-label">SSH Key Path</label>
+                        <input type="text" name="git_ssh_key_path" class="form-control" value="{{ cfg.get('ssh_key_path', '') }}" placeholder="/app/ssh_keys/id_ed25519">
+                    </div>
+                    <div class="col-md-5" id="git-user-field" style="display:none">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="git_username" class="form-control" value="{{ cfg.get('username', '') }}">
+                    </div>
+                    <div class="col-md-4" id="git-pass-field" style="display:none">
+                        <label class="form-label">Password</label>
+                        <input type="password" name="git_password" class="form-control" value="{{ cfg.get('password', '') }}" placeholder="{{ '(unchanged)' if destination and cfg.get('password') else '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <hr class="my-3">
+
+            <!-- Retention -->
+            <h6 class="text-muted mb-3"><i class="bi bi-calendar3"></i> Retention Policy</h6>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Daily backups to keep</label>
+                    <input type="number" name="retention_daily" class="form-control" value="{{ destination.retention_config.get('daily', 14) if destination and destination.retention_config else 14 }}" min="0">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Weekly backups to keep</label>
+                    <input type="number" name="retention_weekly" class="form-control" value="{{ destination.retention_config.get('weekly', 6) if destination and destination.retention_config else 6 }}" min="0">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Monthly backups to keep</label>
+                    <input type="number" name="retention_monthly" class="form-control" value="{{ destination.retention_config.get('monthly', 12) if destination and destination.retention_config else 12 }}" min="0">
+                </div>
+            </div>
+
+            <div class="mt-4">
                 <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> {{ 'Save Changes' if destination else 'Add Destination' }}</button>
                 <a href="/destinations" class="btn btn-outline-secondary">Cancel</a>
             </div>
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const typeSelect = document.getElementById('dest-type-select');
+    const gitAuthSelect = document.getElementById('git-auth-select');
+    const gitTypes = ['git', 'github', 'gitea', 'forgejo'];
+
+    function showFields() {
+        document.querySelectorAll('.dest-fields').forEach(el => el.style.display = 'none');
+        const t = typeSelect.value;
+        if (t === 'local') {
+            document.getElementById('fields-local').style.display = '';
+        } else if (t === 'smb') {
+            document.getElementById('fields-smb').style.display = '';
+        } else if (gitTypes.includes(t)) {
+            document.getElementById('fields-git').style.display = '';
+        }
+    }
+
+    function showGitAuth() {
+        const m = gitAuthSelect.value;
+        document.getElementById('git-token-field').style.display = m === 'token' ? '' : 'none';
+        document.getElementById('git-ssh-field').style.display = m === 'ssh' ? '' : 'none';
+        document.getElementById('git-user-field').style.display = m === 'password' ? '' : 'none';
+        document.getElementById('git-pass-field').style.display = m === 'password' ? '' : 'none';
+    }
+
+    typeSelect.addEventListener('change', showFields);
+    gitAuthSelect.addEventListener('change', showGitAuth);
+
+    // Init
+    showFields();
+    showGitAuth();
+})();
+</script>
 {% endblock %}

@@ -1,4 +1,3 @@
-import json
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -7,6 +6,58 @@ from app.database import get_db
 from app.models.destination import Destination, DestinationType
 
 router = APIRouter(prefix="/destinations")
+
+
+def _build_config(dest_type: str, form: dict) -> dict:
+    """Build config_json from individual form fields based on destination type."""
+    if dest_type == "local":
+        cfg = {"path": form.get("local_path", "./backups").strip() or "./backups"}
+        if form.get("local_compress") == "1":
+            cfg["compress"] = True
+        return cfg
+
+    if dest_type == "smb":
+        cfg = {
+            "server": form.get("smb_server", "").strip(),
+            "share": form.get("smb_share", "").strip(),
+            "base_path": form.get("smb_base_path", "backups").strip() or "backups",
+            "username": form.get("smb_username", "").strip(),
+            "password": form.get("smb_password", ""),
+        }
+        if form.get("smb_compress") == "1":
+            cfg["compress"] = True
+        return cfg
+
+    # Git-based (git, github, gitea, forgejo)
+    auth_method = form.get("git_auth_method", "token")
+    cfg = {
+        "repo_path": form.get("git_repo_path", "./repos/configs").strip() or "./repos/configs",
+        "remote_url": form.get("git_remote_url", "").strip(),
+        "branch": form.get("git_branch", "main").strip() or "main",
+        "auth_method": auth_method,
+    }
+    if auth_method == "token":
+        cfg["token"] = form.get("git_token", "")
+    elif auth_method == "ssh":
+        cfg["ssh_key_path"] = form.get("git_ssh_key_path", "").strip()
+    elif auth_method == "password":
+        cfg["username"] = form.get("git_username", "").strip()
+        cfg["password"] = form.get("git_password", "")
+    return cfg
+
+
+def _merge_config(old_cfg: dict, new_cfg: dict, dest_type: str) -> dict:
+    """Preserve passwords/tokens from old config when form fields are left blank."""
+    secret_keys = []
+    if dest_type == "smb":
+        secret_keys = ["password"]
+    elif dest_type in ("git", "github", "gitea", "forgejo"):
+        secret_keys = ["token", "password"]
+
+    for key in secret_keys:
+        if key in new_cfg and not new_cfg[key] and old_cfg.get(key):
+            new_cfg[key] = old_cfg[key]
+    return new_cfg
 
 
 @router.get("/")
@@ -32,27 +83,21 @@ async def add_destination_form(request: Request):
 @router.post("/add")
 async def add_destination(
     request: Request,
-    name: str = Form(...),
-    dest_type: str = Form(...),
-    config_json: str = Form("{}"),
-    retention_daily: int = Form(14),
-    retention_weekly: int = Form(6),
-    retention_monthly: int = Form(12),
     db: Session = Depends(get_db),
 ):
-    try:
-        config = json.loads(config_json)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON in configuration")
+    form = await request.form()
+    name = form.get("name", "").strip()
+    dest_type = form.get("dest_type", "local")
+    config = _build_config(dest_type, dict(form))
 
     dest = Destination(
         name=name,
         dest_type=DestinationType(dest_type),
         config_json=config,
         retention_config={
-            "daily": retention_daily,
-            "weekly": retention_weekly,
-            "monthly": retention_monthly,
+            "daily": int(form.get("retention_daily", 14)),
+            "weekly": int(form.get("retention_weekly", 6)),
+            "monthly": int(form.get("retention_monthly", 12)),
         },
     )
     db.add(dest)
@@ -78,32 +123,26 @@ async def edit_destination_form(dest_id: int, request: Request, db: Session = De
 @router.post("/{dest_id}/edit")
 async def edit_destination(
     dest_id: int,
-    name: str = Form(...),
-    dest_type: str = Form(...),
-    config_json: str = Form("{}"),
-    retention_daily: int = Form(14),
-    retention_weekly: int = Form(6),
-    retention_monthly: int = Form(12),
-    enabled: bool = Form(True),
+    request: Request,
     db: Session = Depends(get_db),
 ):
     dest = db.query(Destination).get(dest_id)
     if not dest:
         raise HTTPException(status_code=404, detail="Destination not found")
 
-    try:
-        config = json.loads(config_json)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON in configuration")
+    form = await request.form()
+    dest_type = form.get("dest_type", "local")
+    config = _build_config(dest_type, dict(form))
+    config = _merge_config(dest.config_json or {}, config, dest_type)
 
-    dest.name = name
+    dest.name = form.get("name", "").strip()
     dest.dest_type = DestinationType(dest_type)
     dest.config_json = config
-    dest.enabled = enabled
+    dest.enabled = form.get("enabled", "true") == "true"
     dest.retention_config = {
-        "daily": retention_daily,
-        "weekly": retention_weekly,
-        "monthly": retention_monthly,
+        "daily": int(form.get("retention_daily", 14)),
+        "weekly": int(form.get("retention_weekly", 6)),
+        "monthly": int(form.get("retention_monthly", 12)),
     }
     db.commit()
     return RedirectResponse(url="/destinations", status_code=303)

@@ -14,16 +14,42 @@
                 <tr>
                     <th>Name</th>
                     <th>Type</th>
+                    <th>Details</th>
+                    <th>Compression</th>
                     <th>Enabled</th>
                     <th>Retention</th>
-                    <th>Actions</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
                 {% for dest in destinations %}
+                {% set cfg = dest.config_json or {} %}
                 <tr>
                     <td>{{ dest.name }}</td>
-                    <td><span class="badge bg-secondary">{{ dest.dest_type.value }}</span></td>
+                    <td>
+                        {% set type_icons = {'local': 'bi-hdd', 'smb': 'bi-hdd-network', 'git': 'bi-git', 'github': 'bi-github', 'gitea': 'bi-git', 'forgejo': 'bi-git'} %}
+                        <span class="badge bg-secondary"><i class="bi {{ type_icons.get(dest.dest_type.value, 'bi-folder') }}"></i> {{ dest.dest_type.value }}</span>
+                    </td>
+                    <td class="text-muted small">
+                        {% if dest.dest_type.value == 'local' %}
+                            {{ cfg.get('path', './backups') }}
+                        {% elif dest.dest_type.value == 'smb' %}
+                            \\{{ cfg.get('server', '?') }}\{{ cfg.get('share', '?') }}
+                        {% elif dest.dest_type.value in ('git', 'github', 'gitea', 'forgejo') %}
+                            {{ cfg.get('remote_url', '-') | truncate(50) }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if dest.dest_type.value in ('local', 'smb') %}
+                            {% if cfg.get('compress') %}
+                            <span class="badge bg-info">gzip</span>
+                            {% else %}
+                            <span class="text-muted small">off</span>
+                            {% endif %}
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if dest.enabled %}
                         <span class="badge bg-success">Yes</span>
@@ -33,12 +59,12 @@
                     </td>
                     <td>
                         {% if dest.retention_config %}
-                        D:{{ dest.retention_config.get('daily', '-') }} W:{{ dest.retention_config.get('weekly', '-') }} M:{{ dest.retention_config.get('monthly', '-') }}
+                        <small>D:{{ dest.retention_config.get('daily', '-') }} W:{{ dest.retention_config.get('weekly', '-') }} M:{{ dest.retention_config.get('monthly', '-') }}</small>
                         {% else %}
                         -
                         {% endif %}
                     </td>
-                    <td>
+                    <td class="text-end">
                         <a href="/destinations/{{ dest.id }}/edit" class="btn btn-sm btn-outline-light"><i class="bi bi-pencil"></i></a>
                         <form action="/destinations/{{ dest.id }}/delete" method="post" class="d-inline" onsubmit="return confirm('Delete this destination?')">
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
@@ -46,7 +72,7 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5" class="text-center text-muted py-4">No destinations configured. <a href="/destinations/add">Add one</a>.</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">No destinations configured. <a href="/destinations/add">Add one</a>.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
