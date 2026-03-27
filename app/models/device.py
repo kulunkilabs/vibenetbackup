@@ -41,6 +41,8 @@ DEVICE_TYPES: dict[str, str] = {
     # pfSense / OPNsense (FreeBSD-based)
     "pfsense":              "pfSense Firewall (FreeBSD)",
     "opnsense":             "OPNsense Firewall (FreeBSD)",
+    # MikroTik
+    "mikrotik_routeros":    "MikroTik RouterOS",
     # Proxmox VE
     "proxmox":              "Proxmox VE (config file backup)",
     # Generic
@@ -81,6 +83,8 @@ DEVICE_COMMANDS: dict[str, list[str]] = {
     "arista_eos":           ["show running-config"],
     # Juniper
     "juniper_junos":        ["show configuration | display set"],
+    # MikroTik
+    "mikrotik_routeros":    ["/export"],
     # pfSense / OPNsense (SSH fallback)
     "pfsense":              ["cat /cf/conf/config.xml"],
     "opnsense":             ["cat /conf/config.xml"],
