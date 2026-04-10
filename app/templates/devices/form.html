@@ -157,7 +157,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             </span>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Proxy Host</label>
+                            <label class="form-label">Proxy Host
+                                <i class="bi bi-info-circle text-muted ms-1"
+                                   data-bs-toggle="tooltip"
+                                   data-bs-placement="top"
+                                   data-bs-title="SSH jump host — VIBENetBackup SSHes to this host first, then opens a channel to the device from there. Used when devices are only reachable via a bastion/jump host (e.g. remote sites connected via autossh)."></i>
+                            </label>
                             <input type="text" name="proxy_host" class="form-control"
                                    value="{{ src.proxy_host if src and src.proxy_host else '' }}"
                                    placeholder="jump-host IP or hostname">
