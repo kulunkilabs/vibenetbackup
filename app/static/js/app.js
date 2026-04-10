@@ -1,7 +1,21 @@
 // VIBENetBackup - Frontend JS
 
+// Initialize Bootstrap tooltips globally
+function initTooltips(root) {
+    (root || document).querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+        bootstrap.Tooltip.getOrCreateInstance(el);
+    });
+}
+
 // HTMX configuration
 document.addEventListener('DOMContentLoaded', function() {
+    initTooltips();
+
+    // Re-init tooltips after any HTMX swap (new content may contain tooltip elements)
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        initTooltips(evt.detail.target);
+    });
+
     // Configure HTMX defaults
     document.body.addEventListener('htmx:configRequest', function(evt) {
         // Add any custom headers if needed

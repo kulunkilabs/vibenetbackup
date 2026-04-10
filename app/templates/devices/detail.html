@@ -27,6 +27,18 @@
                 <table class="table table-sm mb-0">
                     <tr><td class="text-muted">IP Address</td><td><code>{{ device.ip_address }}</code></td></tr>
                     <tr><td class="text-muted">Port</td><td>{{ device.port }}</td></tr>
+                    {% if device.proxy_host %}
+                    <tr>
+                        <td class="text-muted">Jump Host</td>
+                        <td>
+                            <code>{{ device.proxy_host }}:{{ device.proxy_port or 22 }}</code>
+                            <i class="bi bi-info-circle text-info ms-1"
+                               data-bs-toggle="tooltip"
+                               data-bs-title="SSH connections route through this jump host before reaching the device"
+                               style="cursor: default;"></i>
+                        </td>
+                    </tr>
+                    {% endif %}
                     <tr><td class="text-muted">Type</td><td>{{ device_type_labels.get(device.device_type, device.device_type) }}</td></tr>
                     <tr><td class="text-muted">Engine</td><td>{{ device.backup_engine }}</td></tr>
                     <tr><td class="text-muted">Group</td><td>{{ device.group or '-' }}</td></tr>
