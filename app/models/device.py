@@ -203,9 +203,11 @@ class Device(Base):
     port = Column(Integer, default=22)
     proxy_host = Column(String(255), nullable=True)
     proxy_port = Column(Integer, nullable=True)
+    proxy_credential_id = Column(Integer, ForeignKey("credentials.id"), nullable=True)
     notes = Column(String(1000), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
-    credential = relationship("Credential", back_populates="devices")
+    credential = relationship("Credential", foreign_keys=[credential_id], back_populates="devices")
+    proxy_credential = relationship("Credential", foreign_keys=[proxy_credential_id])
     backups = relationship("Backup", back_populates="device", cascade="all, delete-orphan")

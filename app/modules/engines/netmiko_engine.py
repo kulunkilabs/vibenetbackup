@@ -42,19 +42,22 @@ class NetmikoEngine(BackupEngine):
         return params
 
     def _open_proxy(self, device: Device, credential: Credential) -> tuple:
-        """Open a direct-tcpip channel through the jump host. Returns (jump_client, channel)."""
+        """Open a direct-tcpip channel through the jump host. Returns (jump_client, channel).
+        Uses proxy_credential if set, otherwise falls back to the device credential."""
+        proxy_cred = device.proxy_credential or credential
         logger.info(
-            "Netmiko: opening proxy jump %s:%d → %s:%d",
+            "Netmiko: opening proxy jump %s:%d → %s:%d (proxy user: %s)",
             device.proxy_host, device.proxy_port or 22,
             device.ip_address, device.port or 22,
+            proxy_cred.username,
         )
         jump = paramiko.SSHClient()
         jump.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         jump.connect(
             device.proxy_host,
             port=device.proxy_port or 22,
-            username=credential.username,
-            password=credential.get_password(),
+            username=proxy_cred.username,
+            password=proxy_cred.get_password(),
             timeout=30,
             look_for_keys=False,
             allow_agent=False,

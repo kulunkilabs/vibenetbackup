@@ -23,7 +23,7 @@ class Credential(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
-    devices = relationship("Device", back_populates="credential")
+    devices = relationship("Device", foreign_keys="Device.credential_id", back_populates="credential")
 
     @staticmethod
     def _get_fernet() -> Fernet:

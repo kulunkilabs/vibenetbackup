@@ -38,6 +38,16 @@
                                style="cursor: default;"></i>
                         </td>
                     </tr>
+                    <tr>
+                        <td class="text-muted">Jump Credential</td>
+                        <td>
+                            {% if device.proxy_credential %}
+                            {{ device.proxy_credential.name }} ({{ device.proxy_credential.username }})
+                            {% else %}
+                            <span class="text-muted">Same as device</span>
+                            {% endif %}
+                        </td>
+                    </tr>
                     {% endif %}
                     <tr><td class="text-muted">Type</td><td>{{ device_type_labels.get(device.device_type, device.device_type) }}</td></tr>
                     <tr><td class="text-muted">Engine</td><td>{{ device.backup_engine }}</td></tr>

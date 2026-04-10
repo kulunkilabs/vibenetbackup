@@ -97,6 +97,7 @@ async def add_device(
     port: int = Form(22),
     proxy_host: str = Form(""),
     proxy_port: int = Form(None),
+    proxy_credential_id: int = Form(None),
     notes: str = Form(""),
     db: Session = Depends(get_db),
 ):
@@ -112,6 +113,7 @@ async def add_device(
         port=port,
         proxy_host=proxy_host.strip() or None,
         proxy_port=proxy_port if proxy_port else None,
+        proxy_credential_id=proxy_credential_id if proxy_credential_id else None,
         notes=notes or None,
     )
     db.add(device)
@@ -322,6 +324,7 @@ async def edit_device(
     port: int = Form(22),
     proxy_host: str = Form(""),
     proxy_port: int = Form(None),
+    proxy_credential_id: int = Form(None),
     notes: str = Form(""),
     enabled: bool = Form(True),
     db: Session = Depends(get_db),
@@ -340,6 +343,7 @@ async def edit_device(
     device.port = port
     device.proxy_host = proxy_host.strip() or None
     device.proxy_port = proxy_port if proxy_port else None
+    device.proxy_credential_id = proxy_credential_id if proxy_credential_id else None
     device.notes = notes or None
     device.enabled = enabled
     db.commit()

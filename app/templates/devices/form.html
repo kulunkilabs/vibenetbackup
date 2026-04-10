@@ -156,17 +156,32 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <span class="fw-normal text-muted">— leave blank for direct connection</span>
                             </span>
                         </div>
-                        <div class="col-md-8">
+                        <div class="col-md-6">
                             <label class="form-label">Proxy Host</label>
                             <input type="text" name="proxy_host" class="form-control"
                                    value="{{ src.proxy_host if src and src.proxy_host else '' }}"
                                    placeholder="jump-host IP or hostname">
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-2">
                             <label class="form-label">Proxy Port</label>
                             <input type="number" name="proxy_port" class="form-control"
                                    value="{{ src.proxy_port if src and src.proxy_port else '' }}"
                                    placeholder="22">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Proxy Credential
+                                <i class="bi bi-info-circle text-muted ms-1"
+                                   data-bs-toggle="tooltip"
+                                   data-bs-title="Credential used to authenticate to the jump host. Leave as 'Same as device' if they share the same username/password."></i>
+                            </label>
+                            <select name="proxy_credential_id" class="form-select">
+                                <option value="">— Same as device —</option>
+                                {% for c in credentials %}
+                                <option value="{{ c.id }}" {{ 'selected' if src and src.proxy_credential_id == c.id else '' }}>
+                                    {{ c.name }} ({{ c.username }})
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
                     <hr class="my-1">

@@ -36,7 +36,7 @@
                         {% if device.proxy_host %}
                         <i class="bi bi-diagram-3 text-info ms-1"
                            data-bs-toggle="tooltip"
-                           data-bs-title="Via jump-host: {{ device.proxy_host }}:{{ device.proxy_port or 22 }}"
+                           data-bs-title="Via jump-host: {{ device.proxy_host }}:{{ device.proxy_port or 22 }}{% if device.proxy_credential %} (user: {{ device.proxy_credential.username }}){% endif %}"
                            style="cursor: default;"></i>
                         {% endif %}
                     </td>
