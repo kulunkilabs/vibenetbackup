@@ -35,4 +35,8 @@ else
     fi
 fi
 
+# Run database migrations on every startup so upgrades apply automatically
+echo "[VIBENetBackup] Running database migrations..."
+alembic upgrade head
+
 exec "$@"
