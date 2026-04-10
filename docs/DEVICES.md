@@ -36,6 +36,84 @@ Adding a new device type is one line in `app/models/device.py` — no migration 
 
 ---
 
+## SSH Proxy / Jump Host
+
+VIBENetBackup supports backing up devices that are not directly reachable from the server — for example, routers and switches at remote sites that sit behind a NAT or firewall. This works by routing SSH connections through an intermediate jump host (also called a bastion host or proxy host).
+
+### How It Works
+
+Without a jump host, VIBENetBackup connects directly:
+
+```
+VIBENetBackup ──SSH──► Device
+```
+
+With a jump host, VIBENetBackup SSHes to the jump host first, then opens a channel from there to the target device:
+
+```
+VIBENetBackup ──SSH──► Jump Host ──SSH channel──► Device
+```
+
+This is the same two-hop approach used by Oxidized's SSH proxy feature and OpenSSH's `ProxyJump` directive. VIBENetBackup implements it using Paramiko's `direct-tcpip` channel, which is transparent to the target device.
+
+### Typical Setup: autossh Remote Sites
+
+A common deployment pattern is to have remote sites maintain a persistent reverse SSH tunnel to a central jump host using autossh. Each remote device gets a unique port on the jump host:
+
+```
+Remote site A — router ──autossh──► jump-host:2201
+Remote site B — switch ──autossh──► jump-host:2202
+Remote site C — router ──autossh──► jump-host:2203
+```
+
+VIBENetBackup then backs up through the jump host:
+
+```
+VIBENetBackup ──SSH──► jump-host:22 ──channel──► jump-host:2201 ──► site-A router
+```
+
+### Device Configuration
+
+In the device **Add / Edit** form, scroll to the **SSH Proxy / Jump Host** section (visible for Netmiko and SCP engines):
+
+| Field | Description |
+|-------|-------------|
+| **Proxy Host** | IP address or hostname of the jump host |
+| **Proxy Port** | SSH port on the jump host (default: 22) |
+| **Proxy Credential** | Credential to authenticate to the jump host — leave as *Same as device* if the jump host uses the same username/password as the target device |
+
+**Example — autossh setup:**
+
+| Field | Value |
+|-------|-------|
+| IP Address | `192.168.1.1` (device LAN IP) |
+| Port | `22` (device SSH port) |
+| Proxy Host | `203.0.113.10` (jump host public IP) |
+| Proxy Port | `22` (jump host SSH port) |
+| Proxy Credential | *Same as device* or a dedicated jump host credential |
+
+### Device List Indicator
+
+Devices configured with a jump host show a `⬡` icon next to their IP address in the device list. Hovering the icon shows the jump host address and, if a separate proxy credential is configured, the proxy username.
+
+### Supported Engines
+
+| Engine | Jump Host Support |
+|--------|------------------|
+| **Netmiko (SSH)** | Yes |
+| **SCP (Paramiko)** | Yes |
+| **Oxidized REST API** | Handled by Oxidized (see below) |
+| **pfSense/OPNsense API** | No (HTTPS, not SSH) |
+| **Proxmox VE** | Planned |
+
+### Proxy Credentials
+
+If the jump host requires different credentials than the target device, create a separate credential entry (e.g. `jump-host-creds`) and select it in the **Proxy Credential** dropdown. The engine will use the proxy credential for the jump host SSH connection and the device credential for the device SSH connection.
+
+If left as *Same as device*, the device credential is used for both hops.
+
+---
+
 ## Oxidized Integration
 
 VIBENetBackup can import your device inventory from [Oxidized](https://github.com/ytti/oxidized) and use it as a backup source.
@@ -74,6 +152,15 @@ VIBENetBackup can fetch configs via Oxidized's REST API. Useful when:
 - Migrating from Oxidized gradually
 - Oxidized has better support for certain device types
 - You want Oxidized's collection with VIBENetBackup's storage/retention
+- Oxidized is already handling SSH proxy/jump-host connections to remote devices
+
+VIBENetBackup fetches configs by **device hostname** (node name in Oxidized), not IP address. This is required for jump-host setups where multiple devices share the same jump-host IP — Oxidized identifies nodes by name, not IP.
+
+### Oxidized + Jump Host
+
+If your Oxidized instance is already configured to reach devices through a jump host (via `ProxyCommand`, `ProxyJump`, or Oxidized's `ssh_proxy` setting), VIBENetBackup works transparently — it just calls Oxidized's REST API and receives the config. No jump-host configuration needed in VIBENetBackup for the Oxidized engine.
+
+When importing from Oxidized in a jump-host setup, the import table shows the port from each Oxidized node — non-22 ports (autossh forwarded ports) are highlighted in yellow.
 
 ---
 

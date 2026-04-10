@@ -2,7 +2,7 @@
 
 Network device configuration backup manager with multi-engine support, automated scheduling, and retention policies.
 
-**Version:** 1.5.6 | **License:** MIT
+**Version:** 1.5.7 | **License:** MIT
 
 <p align="center">
   <img src="docs/screenshots/screensh_01.png" alt="VIBENetBackup Dashboard" width="900"/>
@@ -23,6 +23,7 @@ Network device configuration backup manager with multi-engine support, automated
 - **REST API** — Full JSON API at `/api/v1/*`
 - **Cookie-based auth** — 14-day sessions with HMAC-SHA256 signed tokens
 - **Encrypted credentials** — Fernet encryption for stored passwords
+- **SSH Proxy / Jump Host** — Back up devices at remote sites through a bastion/jump host (autossh, ProxyJump)
 - **Import from Oxidized** — Pull your device inventory in one click
 - **Device groups** — Organize devices and credentials by group
 
@@ -107,6 +108,13 @@ Open `http://<your-server-ip>:5005` — default credentials are shown during ins
 ---
 
 ## Changelog
+
+### v1.5.7 (2026-04-10)
+- **SSH Proxy / Jump Host** — Netmiko and SCP engines can now connect through a bastion/jump host before reaching the target device. Useful for remote sites where devices are only reachable via an intermediate SSH server (e.g. autossh tunnels). Configure per device: proxy host, proxy port, and optionally a separate proxy credential when the jump host uses different credentials than the device
+- **Separate proxy credentials** — Jump host and target device can authenticate with different username/password pairs, reusing the existing encrypted credential store
+- **Oxidized engine** — fetches configs by device hostname instead of IP address, required for jump-host setups where multiple devices share the same jump-host IP
+- **Oxidized import** — captures port from Oxidized node data; non-22 ports (jump-host forwarded ports) shown highlighted in the import table
+- **Alembic migration fix** — `alembic upgrade head` now correctly reads `DATABASE_URL` from the environment or `.env` file, fixing Docker upgrades where the database path differs from the `alembic.ini` default
 
 ### v1.5.6 (2026-03-27)
 - **Apprise notifications** — new Notifications tab with CRUD, encrypted URL storage, test button; supports Slack, Discord, Telegram, email (Gmail, Outlook, corporate SMTP relay), and 100+ services

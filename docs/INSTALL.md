@@ -114,6 +114,13 @@ docker compose pull
 docker compose up -d
 ```
 
+**To run database migrations after an update** (required when upgrading to a new release that adds columns):
+```bash
+docker compose exec vibenetbackup alembic upgrade head
+```
+
+The migration command reads `DATABASE_URL` from the container environment automatically.
+
 ---
 
 ## Method 4: Docker — Build from Source
