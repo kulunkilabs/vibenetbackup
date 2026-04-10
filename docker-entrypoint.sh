@@ -35,34 +35,39 @@ else
     fi
 fi
 
-# Run database migrations on every startup so upgrades apply automatically.
-# If the DB was created by create_all() (no alembic_version table), stamp it
-# at the last known baseline revision so only new migrations are applied.
-echo "[VIBENetBackup] Running database migrations..."
+# Apply any missing schema columns directly — safe to run on every startup.
+# Uses sqlite3 directly so it works regardless of alembic_version state.
+echo "[VIBENetBackup] Checking database schema..."
 python3 - <<'PYEOF'
-import os, sys, sqlite3
+import os, sqlite3
 
 db_url = os.environ.get("DATABASE_URL", "sqlite:///./data/vibenetbackup.db")
 if not db_url.startswith("sqlite"):
-    sys.exit(0)  # PostgreSQL/MySQL handle alembic natively
+    raise SystemExit(0)  # non-SQLite DBs handle migrations via alembic natively
 
 db_path = db_url.replace("sqlite:////", "/").replace("sqlite:///", "")
 if not os.path.exists(db_path):
-    sys.exit(0)  # fresh DB — alembic will create everything
+    raise SystemExit(0)  # fresh DB — app startup will create all tables
 
 conn = sqlite3.connect(db_path)
 cur = conn.cursor()
-tables = {r[0] for r in cur.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
 
-if "alembic_version" not in tables and "devices" in tables:
-    print("[VIBENetBackup] No alembic_version found — stamping existing DB at baseline b2c3d4e5f6g7")
-    cur.execute("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL CONSTRAINT alembic_version_pkc PRIMARY KEY)")
-    cur.execute("INSERT INTO alembic_version VALUES ('b2c3d4e5f6g7')")
-    conn.commit()
+existing = {r[1] for r in cur.execute("PRAGMA table_info(devices)").fetchall()}
 
+migrations = [
+    ("proxy_host",          "ALTER TABLE devices ADD COLUMN proxy_host VARCHAR(255)"),
+    ("proxy_port",          "ALTER TABLE devices ADD COLUMN proxy_port INTEGER"),
+    ("proxy_credential_id", "ALTER TABLE devices ADD COLUMN proxy_credential_id INTEGER"),
+]
+
+for col, sql in migrations:
+    if col not in existing:
+        print(f"[VIBENetBackup] Adding column: devices.{col}")
+        cur.execute(sql)
+
+conn.commit()
 conn.close()
+print("[VIBENetBackup] Schema up to date.")
 PYEOF
-
-alembic upgrade head
 
 exec "$@"
