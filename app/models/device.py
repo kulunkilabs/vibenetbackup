@@ -201,6 +201,8 @@ class Device(Base):
     enabled = Column(Boolean, default=True)
     backup_engine = Column(String(50), nullable=False, default="netmiko")
     port = Column(Integer, default=22)
+    proxy_host = Column(String(255), nullable=True)
+    proxy_port = Column(Integer, nullable=True)
     notes = Column(String(1000), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

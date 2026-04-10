@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const portLabel = document.getElementById('port-label');
 
     const enginePorts = { netmiko: 22, scp: 22, oxidized: 8888, pfsense: 443, proxmox: 22 };
+    const proxyEngines = ['netmiko', 'scp'];
     const firewallTypes = ['pfsense', 'opnsense'];
     const proxmoxTypes  = ['proxmox'];
 
@@ -50,14 +51,23 @@ document.addEventListener('DOMContentLoaded', function() {
         updatePortHint();
     });
 
+    function updateProxyVisibility() {
+        const proxySection = document.getElementById('proxy-section');
+        if (proxySection) {
+            proxySection.style.display = proxyEngines.includes(engine.value) ? '' : 'none';
+        }
+    }
+
     engine.addEventListener('change', function() {
         userChangedPort = false;
         updatePortHint();
+        updateProxyVisibility();
     });
 
     // Set initial state
     portLabel.textContent = (engine.value === 'pfsense') ? 'Web Port' : 'SSH Port';
     if (engineHintEl) engineHintEl.textContent = engineHints[engine.value] || '';
+    updateProxyVisibility();
 });
 </script>
 {% endblock %}
@@ -137,6 +147,30 @@ document.addEventListener('DOMContentLoaded', function() {
                     </select>
                 </div>
                 {% endif %}
+                <div class="col-12" id="proxy-section">
+                    <hr class="my-1">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <span class="fw-semibold small text-secondary">
+                                <i class="bi bi-diagram-3"></i> SSH Proxy / Jump Host
+                                <span class="fw-normal text-muted">— leave blank for direct connection</span>
+                            </span>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Proxy Host</label>
+                            <input type="text" name="proxy_host" class="form-control"
+                                   value="{{ src.proxy_host if src and src.proxy_host else '' }}"
+                                   placeholder="jump-host IP or hostname">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Proxy Port</label>
+                            <input type="number" name="proxy_port" class="form-control"
+                                   value="{{ src.proxy_port if src and src.proxy_port else '' }}"
+                                   placeholder="22">
+                        </div>
+                    </div>
+                    <hr class="my-1">
+                </div>
                 <div class="col-12">
                     <label class="form-label">Notes</label>
                     <textarea name="notes" class="form-control" rows="2">{{ src.notes if src and src.notes else '' }}</textarea>

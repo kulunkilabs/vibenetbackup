@@ -18,7 +18,9 @@ class OxidizedEngine(BackupEngine):
 
     async def fetch_config(self, device: Device, credential: Credential) -> str:
         base = self._base_url()
-        url = f"{base}/node/fetch/{device.ip_address}"
+        # Fetch by hostname (node name) — required for jump-host setups where multiple
+        # devices share the same jump-host IP but have unique hostnames.
+        url = f"{base}/node/fetch/{device.hostname}"
         logger.info("Oxidized: fetching config for %s from %s", device.hostname, url)
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.get(url)
@@ -27,7 +29,7 @@ class OxidizedEngine(BackupEngine):
                 logger.info("Oxidized: got config for %s (%d bytes)", device.hostname, len(config))
                 return config
             elif resp.status_code == 404:
-                raise ValueError(f"Device {device.ip_address} not found in Oxidized")
+                raise ValueError(f"Device '{device.hostname}' not found in Oxidized")
             else:
                 raise RuntimeError(f"Oxidized returned {resp.status_code}: {resp.text}")
 

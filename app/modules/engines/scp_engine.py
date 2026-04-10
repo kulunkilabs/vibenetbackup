@@ -13,26 +13,59 @@ logger = logging.getLogger(__name__)
 class SCPEngine(BackupEngine):
     """SCP-based backup engine using Paramiko for direct file pull."""
 
-    def _scp_fetch(self, device: Device, credential: Credential) -> str:
-        host = device.ip_address
-        port = device.port or 22
+    def _open_proxy(self, device: Device, credential: Credential):
+        """Open a direct-tcpip channel through the jump host. Returns (jump_client, channel)."""
+        logger.info(
+            "SCP: opening proxy jump %s:%d → %s:%d",
+            device.proxy_host, device.proxy_port or 22,
+            device.ip_address, device.port or 22,
+        )
+        jump = paramiko.SSHClient()
+        jump.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        jump.connect(
+            device.proxy_host,
+            port=device.proxy_port or 22,
+            username=credential.username,
+            password=credential.get_password(),
+            timeout=30,
+            look_for_keys=False,
+            allow_agent=False,
+        )
+        channel = jump.get_transport().open_channel(
+            "direct-tcpip",
+            (device.ip_address, device.port or 22),
+            ("", 0),
+        )
+        return jump, channel
+
+    def _make_transport(self, device: Device, credential: Credential):
+        """Create a Paramiko Transport, routing through a proxy jump host if configured."""
         username = credential.username
         password = credential.get_password()
+        jump = None
 
-        transport = paramiko.Transport((host, port))
+        if device.proxy_host:
+            jump, sock = self._open_proxy(device, credential)
+            transport = paramiko.Transport(sock)
+        else:
+            transport = paramiko.Transport((device.ip_address, device.port or 22))
+
         try:
-            # Handle legacy SSH crypto for older FastIron firmware
-            try:
-                sec_opts = transport.get_security_options()
-                sec_opts.kex = [
-                    "diffie-hellman-group14-sha256",
-                    "diffie-hellman-group14-sha1",
-                    "diffie-hellman-group1-sha1",
-                ]
-            except Exception:
-                pass  # Use defaults if setting kex fails
+            sec_opts = transport.get_security_options()
+            sec_opts.kex = [
+                "diffie-hellman-group14-sha256",
+                "diffie-hellman-group14-sha1",
+                "diffie-hellman-group1-sha1",
+            ]
+        except Exception:
+            pass
 
-            transport.connect(username=username, password=password)
+        transport.connect(username=username, password=password)
+        return jump, transport
+
+    def _scp_fetch(self, device: Device, credential: Credential) -> str:
+        jump, transport = self._make_transport(device, credential)
+        try:
             sftp = paramiko.SFTPClient.from_transport(transport)
             try:
                 with tempfile.NamedTemporaryFile(suffix=".cfg", delete=True) as tmp:
@@ -45,27 +78,17 @@ class SCPEngine(BackupEngine):
                 sftp.close()
         finally:
             transport.close()
+            if jump:
+                jump.close()
 
     def _scp_test(self, device: Device, credential: Credential) -> bool:
-        host = device.ip_address
-        port = device.port or 22
-        username = credential.username
-        password = credential.get_password()
-
-        transport = paramiko.Transport((host, port))
+        jump, transport = self._make_transport(device, credential)
         try:
-            try:
-                sec_opts = transport.get_security_options()
-                sec_opts.kex = [
-                    "diffie-hellman-group14-sha256",
-                    "diffie-hellman-group14-sha1",
-                    "diffie-hellman-group1-sha1",
-                ]
-            except Exception:
-                pass
-            transport.connect(username=username, password=password)
+            pass  # successful transport.connect() means auth passed
         finally:
             transport.close()
+            if jump:
+                jump.close()
         return True
 
     async def fetch_config(self, device: Device, credential: Credential) -> str:

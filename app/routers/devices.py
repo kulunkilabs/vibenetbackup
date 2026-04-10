@@ -95,6 +95,8 @@ async def add_device(
     group: str = Form("default"),
     backup_engine: str = Form("netmiko"),
     port: int = Form(22),
+    proxy_host: str = Form(""),
+    proxy_port: int = Form(None),
     notes: str = Form(""),
     db: Session = Depends(get_db),
 ):
@@ -108,6 +110,8 @@ async def add_device(
         group=group,
         backup_engine=backup_engine,
         port=port,
+        proxy_host=proxy_host.strip() or None,
+        proxy_port=proxy_port if proxy_port else None,
         notes=notes or None,
     )
     db.add(device)
@@ -159,6 +163,11 @@ async def import_oxidized_form(request: Request, db: Session = Depends(get_db)):
         node["already_exists"] = ip in existing_ips or name in existing_hosts
         node["mapped_type"] = oxidized_model_to_device_type(node.get("model", "generic"))
         node["mapped_label"] = DEVICE_TYPES.get(node["mapped_type"], node["mapped_type"])
+        # Normalize port: oxidized may return int, string, or omit it
+        try:
+            node["port"] = int(node.get("port") or 22)
+        except (ValueError, TypeError):
+            node["port"] = 22
 
     credentials = db.query(Credential).order_by(Credential.name).all()
 
@@ -198,6 +207,11 @@ async def import_oxidized_submit(
         name = node.get("name", "").strip()
         model = node.get("model", "generic")
         group = node.get("group", "default") or "default"
+        # Port from oxidized node data — non-22 indicates a jump-host forwarded port
+        try:
+            port = int(node.get("port") or 22)
+        except (ValueError, TypeError):
+            port = 22
 
         if not ip and not name:
             continue
@@ -216,7 +230,7 @@ async def import_oxidized_submit(
             credential_id=credential_id if credential_id else None,
             group=group,
             backup_engine=backup_engine,
-            port=22,
+            port=port,
             notes=f"Imported from Oxidized (model: {model})",
         )
         db.add(device)
@@ -306,6 +320,8 @@ async def edit_device(
     group: str = Form("default"),
     backup_engine: str = Form("netmiko"),
     port: int = Form(22),
+    proxy_host: str = Form(""),
+    proxy_port: int = Form(None),
     notes: str = Form(""),
     enabled: bool = Form(True),
     db: Session = Depends(get_db),
@@ -322,6 +338,8 @@ async def edit_device(
     device.group = group
     device.backup_engine = backup_engine
     device.port = port
+    device.proxy_host = proxy_host.strip() or None
+    device.proxy_port = proxy_port if proxy_port else None
     device.notes = notes or None
     device.enabled = enabled
     db.commit()
