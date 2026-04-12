@@ -21,7 +21,7 @@ DEVICE_TYPES: dict[str, str] = {
     "nokia_sros":           "Nokia SR OS Classic CLI (7750 / 7210 / 7250 IXR / 7450 / 7705)",
     "nokia_sros_md":        "Nokia SR OS MD-CLI (7750 / 7210 / 7250 IXR / 7450 / 7705)",
     # Nuage / Nokia SD-WAN
-    "linux":                "Nuage VSC (TiMOS/Linux)",
+    "nuage_vsc":            "Nuage VSC (TiMOS/Linux)",
     # HP / Aruba
     "hp_procurve":          "HP ProCurve / Aruba OS-Switch",
     "hp_comware":           "HP Comware (A/H3C)",
@@ -66,7 +66,8 @@ DEVICE_COMMANDS: dict[str, list[str]] = {
     # Nokia SROS  (model-driven CLI — 16.0+)
     "nokia_sros_md":        ["admin show configuration"],
     # Nuage VSC runs TiMOS under the hood
-    "linux":                ["cat /etc/network/interfaces"],
+    "nuage_vsc":            ["admin display-config"],
+    "linux":                ["show running-config"],
     # HP
     "hp_procurve":          ["show running-config"],
     "hp_comware":           ["display current-configuration"],
@@ -114,7 +115,7 @@ OXIDIZED_MODEL_MAP: dict[str, str] = {
     "timosmda":         "nokia_sros_md",
     "timos":            "nokia_sros",
     # Nuage
-    "vsc":              "linux",
+    "vsc":              "nuage_vsc",
     # HP / Aruba
     "procurve":         "hp_procurve",
     "comware":          "hp_comware",

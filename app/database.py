@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 from typing import Generator
 from app.config import get_settings
@@ -13,6 +13,14 @@ engine = create_engine(
     connect_args={"check_same_thread": False},  # SQLite only
     echo=False,
 )
+
+
+# Enable SQLite foreign key enforcement on every connection
+@event.listens_for(engine, "connect")
+def _set_sqlite_pragma(dbapi_conn, connection_record):
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -29,6 +37,7 @@ def init_db() -> None:
     """Create all tables and apply lightweight column migrations."""
     Base.metadata.create_all(bind=engine)
     _apply_column_migrations()
+    _fix_orphaned_credential_refs()
 
 
 def _apply_column_migrations() -> None:
@@ -42,6 +51,18 @@ def _apply_column_migrations() -> None:
             conn.execute(text("ALTER TABLE credentials ADD COLUMN \"group\" VARCHAR(100) DEFAULT 'default'"))
             conn.commit()
 
+        # v1.5: devices proxy columns (also handled by docker-entrypoint, duplicated here
+        #        so bare-metal installs and the test client both pick them up)
+        dev_cols = {c["name"] for c in inspector.get_columns("devices")}
+        for col_name, col_def in [
+            ("proxy_host",          "VARCHAR(255)"),
+            ("proxy_port",          "INTEGER"),
+            ("proxy_credential_id", "INTEGER"),
+        ]:
+            if col_name not in dev_cols:
+                conn.execute(text(f'ALTER TABLE devices ADD COLUMN "{col_name}" {col_def}'))
+        conn.commit()
+
         # v1.6: group profile columns
         if "groups" in inspector.get_table_names():
             group_cols = {c["name"] for c in inspector.get_columns("groups")}
@@ -53,3 +74,28 @@ def _apply_column_migrations() -> None:
                 if col_name not in group_cols:
                     conn.execute(text(f'ALTER TABLE groups ADD COLUMN "{col_name}" {col_def}'))
             conn.commit()
+
+
+def _fix_orphaned_credential_refs() -> None:
+    """Clear device credential_id / proxy_credential_id that point to deleted credentials."""
+    import logging
+    logger = logging.getLogger("vibenetbackup")
+    with engine.connect() as conn:
+        from sqlalchemy import text
+        # Fix credential_id referencing non-existent credentials
+        result = conn.execute(text(
+            "UPDATE devices SET credential_id = NULL "
+            "WHERE credential_id IS NOT NULL "
+            "AND credential_id NOT IN (SELECT id FROM credentials)"
+        ))
+        if result.rowcount:
+            logger.warning("Fixed %d device(s) with orphaned credential_id", result.rowcount)
+        # Fix proxy_credential_id referencing non-existent credentials
+        result = conn.execute(text(
+            "UPDATE devices SET proxy_credential_id = NULL "
+            "WHERE proxy_credential_id IS NOT NULL "
+            "AND proxy_credential_id NOT IN (SELECT id FROM credentials)"
+        ))
+        if result.rowcount:
+            logger.warning("Fixed %d device(s) with orphaned proxy_credential_id", result.rowcount)
+        conn.commit()

@@ -137,6 +137,12 @@ if [ -f "$SAFE_DIR/.env" ]; then
     ok "Configuration restored (SECRET_KEY preserved)"
 fi
 if [ -f "$SAFE_DIR/vibenetbackup.db" ]; then
+    # Keep a permanent pre-upgrade backup alongside the live DB
+    BACKUP_TS=$(date +%Y%m%d_%H%M%S)
+    cp "$SAFE_DIR/vibenetbackup.db" "vibenetbackup.db.bak_${BACKUP_TS}"
+    chown "$SERVICE_USER:$SERVICE_USER" "vibenetbackup.db.bak_${BACKUP_TS}"
+    chmod 600 "vibenetbackup.db.bak_${BACKUP_TS}"
+    ok "Pre-upgrade database snapshot saved as vibenetbackup.db.bak_${BACKUP_TS}"
     cp "$SAFE_DIR/vibenetbackup.db" vibenetbackup.db
     chown "$SERVICE_USER:$SERVICE_USER" vibenetbackup.db
     chmod 600 vibenetbackup.db

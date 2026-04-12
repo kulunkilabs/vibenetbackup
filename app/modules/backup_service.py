@@ -264,7 +264,7 @@ async def run_backup_job(
 
     errors = []
     for device_id in device_ids:
-        device = db.query(Device).get(device_id)
+        device = db.get(Device, device_id)
         if not device or not device.enabled:
             job_run.devices_failed += 1
             errors.append(f"Device {device_id}: not found or disabled")

@@ -71,16 +71,25 @@ set_password() {
         fail "Password cannot be empty!"
     fi
     
-    # Update .env file
-    sed -i "s/^AUTH_PASSWORD=.*/AUTH_PASSWORD=$NEW_PASS/" "$ENV_FILE"
-    
+    # Update .env file — use python to safely write value with no shell metachar issues
+    python3 -c "
+import re, sys
+path = sys.argv[1]
+new_pass = sys.argv[2]
+with open(path) as f:
+    content = f.read()
+content = re.sub(r'^AUTH_PASSWORD=.*', 'AUTH_PASSWORD=' + new_pass, content, flags=re.MULTILINE)
+with open(path, 'w') as f:
+    f.write(content)
+" "$ENV_FILE" "$NEW_PASS"
+
     # Restart service if running
     if systemctl is-active --quiet vibenetbackup 2>/dev/null; then
         info "Restarting service..."
         systemctl restart vibenetbackup
         ok "Service restarted"
     fi
-    
+
     ok "Password changed successfully!"
     echo ""
     echo -e "New credentials:"
@@ -102,9 +111,18 @@ reset_password() {
     fi
     
     NEW_PASS=$(openssl rand -base64 16 | tr -d '=/+' | head -c 20)
-    
-    # Update .env file
-    sed -i "s/^AUTH_PASSWORD=.*/AUTH_PASSWORD=$NEW_PASS/" "$ENV_FILE"
+
+    # Update .env file — use python to safely write value with no shell metachar issues
+    python3 -c "
+import re, sys
+path = sys.argv[1]
+new_pass = sys.argv[2]
+with open(path) as f:
+    content = f.read()
+content = re.sub(r'^AUTH_PASSWORD=.*', 'AUTH_PASSWORD=' + new_pass, content, flags=re.MULTILINE)
+with open(path, 'w') as f:
+    f.write(content)
+" "$ENV_FILE" "$NEW_PASS"
     
     # Restart service if running
     if systemctl is-active --quiet vibenetbackup 2>/dev/null; then

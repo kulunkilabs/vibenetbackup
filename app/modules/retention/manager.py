@@ -78,10 +78,10 @@ async def run_retention_sweep(db: Session) -> dict:
                     backup.is_pruned = True
                     backup.pruned_at = datetime.now(timezone.utc)
                     results["pruned"] += 1
+                    db.commit()  # commit immediately so DB reflects deleted file
                 except Exception as e:
+                    db.rollback()
                     logger.error("Retention: failed to prune backup %d: %s", backup.id, e)
                     results["errors"] += 1
-
-    db.commit()
     logger.info("Retention sweep complete: %d pruned, %d errors", results["pruned"], results["errors"])
     return results

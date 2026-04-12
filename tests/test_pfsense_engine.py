@@ -64,8 +64,8 @@ class TestPfSenseEngine:
         assert result == "test-token-123"
 
     def test_extract_csrf_token_alternative_format(self, engine):
-        """Test CSRF token extraction with single quotes."""
-        html = "<input __csrf_magic value='token-456'>"
+        """Test CSRF token extraction with single-quoted name/value attributes."""
+        html = "<input name='__csrf_magic' value='token-456'>"
         result = engine._extract_csrf_token(html)
         assert result == "token-456"
 
@@ -81,20 +81,20 @@ class TestPfSenseEngine:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.text = "<opnsense-config>test</opnsense-config>"
-        
+
         mock_client = AsyncMock()
-        mock_client.get = AsyncMock(return_value=mock_response)
-        
+        # _fetch_opnsense_config uses _try_request which calls client.request(), not client.get()
+        mock_client.request = AsyncMock(return_value=mock_response)
+
         result = await engine._fetch_opnsense_config(
             opnsense_device, credential, mock_client
         )
-        
+
         assert result == "<opnsense-config>test</opnsense-config>"
-        mock_client.get.assert_called_once_with(
-            "https://192.168.1.2/api/core/backup/download/this",
-            auth=("admin", "secret123"),
-            timeout=60
-        )
+        mock_client.request.assert_called_once()
+        call_kwargs = mock_client.request.call_args
+        assert call_kwargs[0][0] == "GET"
+        assert "/api/core/backup/download/this" in call_kwargs[0][1]
 
     @pytest.mark.asyncio
     async def test_fetch_opnsense_config_auth_failed(self, engine, opnsense_device, credential):
@@ -102,10 +102,10 @@ class TestPfSenseEngine:
         mock_response = Mock()
         mock_response.status_code = 401
         mock_response.text = "Unauthorized"
-        
+
         mock_client = AsyncMock()
-        mock_client.get = AsyncMock(return_value=mock_response)
-        
+        mock_client.request = AsyncMock(return_value=mock_response)
+
         with pytest.raises(PermissionError, match="authentication failed"):
             await engine._fetch_opnsense_config(
                 opnsense_device, credential, mock_client

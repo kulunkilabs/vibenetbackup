@@ -40,9 +40,9 @@ class TestDeviceAPI:
     """Test device API endpoints."""
 
     def test_list_devices_unauthorized(self, client):
-        """Test devices endpoint requires auth."""
-        response = client.get("/devices/")
-        assert response.status_code == 401
+        """Test devices endpoint requires auth — browser routes redirect to login (302)."""
+        response = client.get("/devices/", follow_redirects=False)
+        assert response.status_code in (302, 307)
 
     def test_list_devices_with_auth(self, client, auth_headers):
         """Test devices endpoint with auth."""

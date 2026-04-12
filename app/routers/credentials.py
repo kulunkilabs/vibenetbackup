@@ -145,6 +145,9 @@ async def delete_credential(cred_id: int, db: Session = Depends(get_db)):
     db.query(Device).filter(Device.credential_id == cred_id).update(
         {"credential_id": None}, synchronize_session="fetch"
     )
+    db.query(Device).filter(Device.proxy_credential_id == cred_id).update(
+        {"proxy_credential_id": None}, synchronize_session="fetch"
+    )
     db.delete(cred)
     db.commit()
     return RedirectResponse(url="/credentials", status_code=303)
