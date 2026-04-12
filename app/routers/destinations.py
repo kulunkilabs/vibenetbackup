@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -156,3 +156,45 @@ async def delete_destination(dest_id: int, db: Session = Depends(get_db)):
     db.delete(dest)
     db.commit()
     return RedirectResponse(url="/destinations", status_code=303)
+
+
+@router.get("/{dest_id}/status", response_class=HTMLResponse)
+async def destination_status(dest_id: int, db: Session = Depends(get_db)):
+    """HTMX endpoint: returns a small status badge for a destination."""
+    dest = db.query(Destination).get(dest_id)
+    if not dest:
+        return HTMLResponse('<span class="badge bg-secondary">?</span>')
+
+    if dest.dest_type.value != "smb":
+        return HTMLResponse('<span class="badge bg-secondary text-muted">local</span>')
+
+    from app.modules.destinations.smb import SMBDestination
+    backend = SMBDestination()
+    result = await backend.test(dest.config_json or {})
+
+    if result["ok"]:
+        html = '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Online</span>'
+    else:
+        # Show which step failed as a tooltip
+        failed = next((s for s in result["steps"] if not s["ok"]), None)
+        tip = failed["msg"] if failed else "Unknown error"
+        tip = tip.replace('"', "&quot;")
+        html = f'<span class="badge bg-danger" title="{tip}" data-bs-toggle="tooltip"><i class="bi bi-x-circle"></i> Offline</span>'
+
+    return HTMLResponse(html)
+
+
+@router.post("/{dest_id}/test")
+async def test_destination(dest_id: int, db: Session = Depends(get_db)):
+    """Run a full connectivity + write-permission test and return JSON results."""
+    dest = db.query(Destination).get(dest_id)
+    if not dest:
+        raise HTTPException(status_code=404, detail="Destination not found")
+
+    if dest.dest_type.value != "smb":
+        return JSONResponse({"ok": True, "steps": [{"step": "local", "ok": True, "msg": "Local destination — no connectivity check needed"}]})
+
+    from app.modules.destinations.smb import SMBDestination
+    backend = SMBDestination()
+    result = await backend.test(dest.config_json or {})
+    return JSONResponse(result)

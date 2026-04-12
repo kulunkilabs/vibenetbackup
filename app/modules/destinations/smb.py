@@ -12,6 +12,78 @@ logger = logging.getLogger(__name__)
 class SMBDestination(DestinationBackend):
     """Push backups to an SMB/CIFS network share."""
 
+    async def test(self, config: dict[str, Any]) -> dict:
+        """Test SMB connectivity, authentication, and write permissions.
+
+        Returns {"ok": bool, "steps": [{"step": str, "ok": bool, "msg": str}]}
+        """
+        server = config.get("server", "")
+        share = config.get("share", "")
+        username = config.get("username", "")
+        password = config.get("password", "")
+        base_path = config.get("base_path", "backups")
+
+        steps: list[dict] = []
+
+        def _run_test():
+            import socket
+            import smbclient
+
+            # Step 1: TCP reachability (port 445)
+            try:
+                sock = socket.create_connection((server, 445), timeout=5)
+                sock.close()
+                steps.append({"step": "tcp", "ok": True, "msg": f"TCP port 445 reachable on {server}"})
+            except Exception as e:
+                steps.append({"step": "tcp", "ok": False, "msg": f"TCP port 445 unreachable on {server}: {e}"})
+                return False
+
+            # Step 2: Authentication
+            try:
+                smbclient.register_session(server, username=username, password=password)
+                steps.append({"step": "auth", "ok": True, "msg": f"Authenticated as '{username or '(anonymous)'}'"})
+            except Exception as e:
+                steps.append({"step": "auth", "ok": False, "msg": f"Authentication failed: {e}"})
+                return False
+
+            # Step 3: List share root
+            unc_share = f"\\\\{server}\\{share}"
+            try:
+                entries = list(smbclient.listdir(unc_share))
+                steps.append({"step": "list", "ok": True, "msg": f"Share \\\\{server}\\{share} accessible ({len(entries)} entries in root)"})
+            except Exception as e:
+                steps.append({"step": "list", "ok": False, "msg": f"Cannot list share \\\\{server}\\{share}: {e}"})
+                return False
+
+            # Step 4: Write + delete test file in base_path
+            unc_base = f"\\\\{server}\\{share}\\{base_path.replace('/', '\\')}"
+            unc_test = f"{unc_base}\\.vibenetbackup_writetest"
+            try:
+                smbclient.makedirs(unc_base, exist_ok=True)
+                with smbclient.open_file(unc_test, mode="w") as f:
+                    f.write("vibenetbackup write test")
+                smbclient.remove(unc_test)
+                steps.append({"step": "write", "ok": True, "msg": f"Write/delete test passed in '{base_path}'"})
+            except Exception as e:
+                steps.append({"step": "write", "ok": False, "msg": f"Write permission check failed in '{base_path}': {e}"})
+                return False
+
+            return True
+
+        try:
+            ok = await asyncio.to_thread(_run_test)
+        except Exception as e:
+            steps.append({"step": "error", "ok": False, "msg": str(e)})
+            ok = False
+
+        for s in steps:
+            if s["ok"]:
+                logger.info("SMB test [%s] %s: %s", server, s["step"], s["msg"])
+            else:
+                logger.warning("SMB test [%s] %s: %s", server, s["step"], s["msg"])
+
+        return {"ok": ok, "steps": steps}
+
     async def save(self, hostname: str, config_text: str, config: dict[str, Any]) -> str:
         server = config["server"]
         share = config["share"]

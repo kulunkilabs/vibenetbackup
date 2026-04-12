@@ -7,6 +7,31 @@
     <a href="/destinations/add" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Destination</a>
 </div>
 
+<!-- Test result toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
+    <div id="testToast" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="testToastBody"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+<!-- Test detail modal -->
+<div class="modal fade" id="testModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-hdd-network"></i> SMB Connection Test</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="testModalBody">
+                <div class="text-center py-3"><div class="spinner-border spinner-border-sm"></div> Testing…</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
@@ -18,6 +43,7 @@
                     <th>Compression</th>
                     <th>Enabled</th>
                     <th>Retention</th>
+                    <th>Status</th>
                     <th></th>
                 </tr>
             </thead>
@@ -64,7 +90,26 @@
                         -
                         {% endif %}
                     </td>
+                    <td>
+                        {% if dest.dest_type.value == 'smb' %}
+                        <span id="status-{{ dest.id }}"
+                              hx-get="/destinations/{{ dest.id }}/status"
+                              hx-trigger="load"
+                              hx-swap="outerHTML">
+                            <span class="badge bg-secondary"><span class="spinner-border spinner-border-sm"></span></span>
+                        </span>
+                        {% else %}
+                        <span class="badge bg-secondary text-muted">local</span>
+                        {% endif %}
+                    </td>
                     <td class="text-end">
+                        {% if dest.dest_type.value == 'smb' %}
+                        <button class="btn btn-sm btn-outline-info me-1"
+                                title="Test connection"
+                                onclick="testDestination({{ dest.id }}, '{{ dest.name }}')">
+                            <i class="bi bi-plug"></i>
+                        </button>
+                        {% endif %}
                         <a href="/destinations/{{ dest.id }}/edit" class="btn btn-sm btn-outline-light"><i class="bi bi-pencil"></i></a>
                         <form action="/destinations/{{ dest.id }}/delete" method="post" class="d-inline" onsubmit="return confirm('Delete this destination?')">
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
@@ -72,10 +117,66 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="7" class="text-center text-muted py-4">No destinations configured. <a href="/destinations/add">Add one</a>.</td></tr>
+                <tr><td colspan="8" class="text-center text-muted py-4">No destinations configured. <a href="/destinations/add">Add one</a>.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function testDestination(destId, destName) {
+    const modal = new bootstrap.Modal(document.getElementById('testModal'));
+    document.querySelector('#testModal .modal-title').innerHTML =
+        '<i class="bi bi-hdd-network"></i> SMB Test — ' + destName;
+    document.getElementById('testModalBody').innerHTML =
+        '<div class="text-center py-3"><div class="spinner-border spinner-border-sm"></div> Testing…</div>';
+    modal.show();
+
+    try {
+        const resp = await fetch('/destinations/' + destId + '/test', {method: 'POST'});
+        const data = await resp.json();
+
+        let html = '<ul class="list-group list-group-flush">';
+        for (const s of data.steps) {
+            const icon = s.ok
+                ? '<i class="bi bi-check-circle-fill text-success"></i>'
+                : '<i class="bi bi-x-circle-fill text-danger"></i>';
+            html += `<li class="list-group-item bg-dark d-flex gap-2 align-items-start">
+                        ${icon}
+                        <div>
+                            <span class="fw-semibold text-capitalize">${s.step}</span>
+                            <div class="text-muted small">${s.msg}</div>
+                        </div>
+                     </li>`;
+        }
+        html += '</ul>';
+
+        if (data.ok) {
+            html = '<div class="alert alert-success mb-3"><i class="bi bi-check-circle-fill"></i> All checks passed</div>' + html;
+        } else {
+            html = '<div class="alert alert-danger mb-3"><i class="bi bi-x-circle-fill"></i> One or more checks failed</div>' + html;
+        }
+
+        document.getElementById('testModalBody').innerHTML = html;
+
+        // Refresh the inline status badge
+        const badge = document.getElementById('status-' + destId);
+        if (badge) {
+            badge.outerHTML = `<span id="status-${destId}"
+                hx-get="/destinations/${destId}/status"
+                hx-trigger="load"
+                hx-swap="outerHTML">
+                <span class="badge bg-secondary"><span class="spinner-border spinner-border-sm"></span></span>
+            </span>`;
+            htmx.process(document.getElementById('status-' + destId));
+        }
+    } catch (e) {
+        document.getElementById('testModalBody').innerHTML =
+            '<div class="alert alert-danger">Request failed: ' + e + '</div>';
+    }
+}
+</script>
 {% endblock %}
