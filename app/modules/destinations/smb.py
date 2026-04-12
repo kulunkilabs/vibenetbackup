@@ -27,18 +27,14 @@ class SMBDestination(DestinationBackend):
         remote_path = f"{remote_dir}/{timestamp}{ext}"
 
         def _smb_write():
-            import os
             import smbclient
             smbclient.register_session(server, username=username, password=password)
 
-            unc_dir = f"\\\\{server}\\{share}\\{remote_dir.replace('/', os.sep)}"
-            unc_path = f"\\\\{server}\\{share}\\{remote_path.replace('/', os.sep)}"
+            unc_dir = f"\\\\{server}\\{share}\\{remote_dir.replace('/', '\\')}"
+            unc_path = f"\\\\{server}\\{share}\\{remote_path.replace('/', '\\')}"
 
             # Ensure directory exists
-            try:
-                smbclient.makedirs(unc_dir)
-            except OSError:
-                pass  # Directory may already exist
+            smbclient.makedirs(unc_dir, exist_ok=True)
 
             if compress:
                 data = gzip.compress(config_text.encode("utf-8"))
