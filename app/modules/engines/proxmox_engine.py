@@ -117,6 +117,8 @@ PROXMOX_BACKUP_PATHS = [
 
 
 def _ssh_connect(device: Device, credential: Credential) -> paramiko.SSHClient:
+    if not credential.username:
+        raise ValueError(f"Credential '{credential.name}' has no username — SSH requires a username")
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     kwargs: dict = {

@@ -75,6 +75,31 @@ def _apply_column_migrations() -> None:
                     conn.execute(text(f'ALTER TABLE groups ADD COLUMN "{col_name}" {col_def}'))
             conn.commit()
 
+        # v1.6.1: credentials.username — drop NOT NULL constraint so password-only
+        # devices (no username) are supported. SQLite requires a full table recreation
+        # to remove a NOT NULL constraint (ALTER COLUMN is not supported).
+        # PRAGMA table_info columns: (cid, name, type, notnull, dflt_value, pk)
+        cred_col_info = {r[1]: r[3] for r in conn.execute(text("PRAGMA table_info(credentials)")).fetchall()}
+        if cred_col_info.get("username") == 1:  # notnull=1 means NOT NULL is set
+            conn.execute(text("""
+                CREATE TABLE credentials_new (
+                    id       INTEGER      NOT NULL PRIMARY KEY,
+                    name     VARCHAR(255) NOT NULL UNIQUE,
+                    username VARCHAR(255),
+                    password_encrypted       VARCHAR(500),
+                    enable_secret_encrypted  VARCHAR(500),
+                    ssh_key_path             VARCHAR(500),
+                    "group"  VARCHAR(100) DEFAULT 'default',
+                    created_at DATETIME,
+                    updated_at DATETIME
+                )
+            """))
+            conn.execute(text("INSERT INTO credentials_new SELECT * FROM credentials"))
+            conn.execute(text("DROP TABLE credentials"))
+            conn.execute(text("ALTER TABLE credentials_new RENAME TO credentials"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_credentials_id ON credentials (id)"))
+            conn.commit()
+
 
 def _fix_orphaned_credential_refs() -> None:
     """Clear device credential_id / proxy_credential_id that point to deleted credentials."""

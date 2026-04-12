@@ -43,6 +43,8 @@ class SCPEngine(BackupEngine):
 
     def _make_transport(self, device: Device, credential: Credential):
         """Create a Paramiko Transport, routing through a proxy jump host if configured."""
+        if not credential.username:
+            raise ValueError(f"Credential '{credential.name}' has no username — SSH/SCP requires a username")
         username = credential.username
         password = credential.get_password()
         jump = None

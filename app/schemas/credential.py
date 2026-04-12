@@ -5,7 +5,7 @@ from typing import Optional
 
 class CredentialBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    username: str = Field(..., min_length=1, max_length=255)
+    username: Optional[str] = Field(None, max_length=255)
     ssh_key_path: Optional[str] = None
 
 
@@ -25,7 +25,7 @@ class CredentialUpdate(BaseModel):
 class CredentialRead(BaseModel):
     id: int
     name: str
-    username: str
+    username: Optional[str] = None
     ssh_key_path: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

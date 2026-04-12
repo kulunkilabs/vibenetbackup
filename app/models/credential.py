@@ -15,7 +15,7 @@ class Credential(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False, unique=True)
-    username = Column(String(255), nullable=False)
+    username = Column(String(255), nullable=True)
     password_encrypted = Column(String(500), nullable=True)
     enable_secret_encrypted = Column(String(500), nullable=True)
     ssh_key_path = Column(String(500), nullable=True)

@@ -35,7 +35,7 @@ async def add_credential_form(request: Request, db: Session = Depends(get_db)):
 async def add_credential(
     request: Request,
     name: str = Form(...),
-    username: str = Form(...),
+    username: str = Form(""),
     password: str = Form(""),
     enable_secret: str = Form(""),
     ssh_key_path: str = Form(""),
@@ -44,7 +44,7 @@ async def add_credential(
 ):
     cred = Credential(
         name=name,
-        username=username,
+        username=username.strip() or None,
         ssh_key_path=ssh_key_path or None,
         group=group or "default",
     )
@@ -59,7 +59,7 @@ async def add_credential(
 
 @router.get("/{cred_id}/edit")
 async def edit_credential_form(cred_id: int, request: Request, db: Session = Depends(get_db)):
-    cred = db.query(Credential).get(cred_id)
+    cred = db.get(Credential, cred_id)
     if not cred:
         raise HTTPException(status_code=404, detail="Credential not found")
     return request.app.state.templates.TemplateResponse(
@@ -73,18 +73,18 @@ async def edit_credential(
     cred_id: int,
     request: Request,
     name: str = Form(...),
-    username: str = Form(...),
+    username: str = Form(""),
     password: str = Form(""),
     enable_secret: str = Form(""),
     ssh_key_path: str = Form(""),
     group: str = Form("default"),
     db: Session = Depends(get_db),
 ):
-    cred = db.query(Credential).get(cred_id)
+    cred = db.get(Credential, cred_id)
     if not cred:
         raise HTTPException(status_code=404, detail="Credential not found")
     cred.name = name
-    cred.username = username
+    cred.username = username.strip() or None
     cred.ssh_key_path = ssh_key_path or None
     cred.group = group or "default"
     if password:
@@ -137,7 +137,7 @@ async def generate_ssh_key(key_name: str = Form(...)):
 async def delete_credential(cred_id: int, db: Session = Depends(get_db)):
     from app.models.device import Device
 
-    cred = db.query(Credential).get(cred_id)
+    cred = db.get(Credential, cred_id)
     if not cred:
         raise HTTPException(status_code=404, detail="Credential not found")
 

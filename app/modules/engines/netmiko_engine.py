@@ -17,6 +17,8 @@ class NetmikoEngine(BackupEngine):
     SLOW_PROMPT_TYPES = {"nokia_sros", "nokia_sros_md"}
 
     def _build_params(self, device: Device, credential: Credential) -> dict:
+        if not credential.username:
+            raise ValueError(f"Credential '{credential.name}' has no username — SSH requires a username")
         # Map our device_type to Netmiko's device_type (e.g., opnsense -> linux)
         netmiko_device_type = get_netmiko_device_type(device.device_type)
         params = {

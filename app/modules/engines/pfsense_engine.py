@@ -102,6 +102,8 @@ class PfSenseEngine(BackupEngine):
         client: httpx.AsyncClient,
     ) -> str:
         """Fetch config from pfSense via REST API or PHP endpoint."""
+        if not credential.username:
+            raise ValueError(f"Credential '{credential.name}' has no username — pfSense requires a username")
         username = credential.username
         password = credential.get_password()
 
