@@ -84,6 +84,9 @@ def _apply_column_migrations() -> None:
         # PRAGMA table_info columns: (cid, name, type, notnull, dflt_value, pk)
         cred_col_info = {r[1]: r[3] for r in conn.execute(text("PRAGMA table_info(credentials)")).fetchall()}
         if cred_col_info.get("username") == 1:  # notnull=1 means NOT NULL is set
+            # defer_foreign_keys delays FK enforcement until COMMIT so we can
+            # DROP the old credentials table before renaming the replacement into place
+            conn.execute(text("PRAGMA defer_foreign_keys=ON"))
             conn.execute(text("""
                 CREATE TABLE credentials_new (
                     id       INTEGER      NOT NULL PRIMARY KEY,
