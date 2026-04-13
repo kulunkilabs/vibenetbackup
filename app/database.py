@@ -44,6 +44,9 @@ def _apply_column_migrations() -> None:
     """Add columns introduced in later versions to existing databases."""
     with engine.connect() as conn:
         from sqlalchemy import text, inspect
+        # Clean up any temp tables left behind by interrupted migrations
+        conn.execute(text("DROP TABLE IF EXISTS credentials_new"))
+        conn.commit()
         inspector = inspect(conn)
         # v0.9: credentials.group column
         cred_cols = {c["name"] for c in inspector.get_columns("credentials")}
