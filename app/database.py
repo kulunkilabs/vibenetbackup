@@ -84,10 +84,16 @@ def _apply_column_migrations() -> None:
         # PRAGMA table_info columns: (cid, name, type, notnull, dflt_value, pk)
         cred_col_info = {r[1]: r[3] for r in conn.execute(text("PRAGMA table_info(credentials)")).fetchall()}
         if cred_col_info.get("username") == 1:  # notnull=1 means NOT NULL is set
-            # defer_foreign_keys delays FK enforcement until COMMIT so we can
-            # DROP the old credentials table before renaming the replacement into place
-            conn.execute(text("PRAGMA defer_foreign_keys=ON"))
-            conn.execute(text("""
+            # SQLite requires a full table recreation to drop a NOT NULL constraint.
+            # PRAGMA foreign_keys=OFF is needed to DROP the old credentials table
+            # while devices still references it — but this pragma cannot be changed
+            # inside an active transaction.  We commit any open SQLAlchemy transaction
+            # first, then issue the DDL via the raw DBAPI (sqlite3) connection so
+            # SQLAlchemy's autobegin cannot sneak a BEGIN in before the pragma.
+            conn.commit()
+            raw = conn.connection.dbapi_connection
+            raw.execute("PRAGMA foreign_keys=OFF")
+            raw.execute("""
                 CREATE TABLE credentials_new (
                     id       INTEGER      NOT NULL PRIMARY KEY,
                     name     VARCHAR(255) NOT NULL UNIQUE,
@@ -99,12 +105,13 @@ def _apply_column_migrations() -> None:
                     created_at DATETIME,
                     updated_at DATETIME
                 )
-            """))
-            conn.execute(text("INSERT INTO credentials_new SELECT * FROM credentials"))
-            conn.execute(text("DROP TABLE credentials"))
-            conn.execute(text("ALTER TABLE credentials_new RENAME TO credentials"))
-            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_credentials_id ON credentials (id)"))
-            conn.commit()
+            """)
+            raw.execute("INSERT INTO credentials_new SELECT * FROM credentials")
+            raw.execute("DROP TABLE credentials")
+            raw.execute("ALTER TABLE credentials_new RENAME TO credentials")
+            raw.execute("CREATE INDEX IF NOT EXISTS ix_credentials_id ON credentials (id)")
+            raw.commit()  # must commit: INSERT starts an implicit tx; pool reset calls rollback() otherwise
+            raw.execute("PRAGMA foreign_keys=ON")
 
 
 def _fix_orphaned_credential_refs() -> None:
