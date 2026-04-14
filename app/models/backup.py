@@ -18,7 +18,7 @@ class Backup(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     device_id = Column(Integer, ForeignKey("devices.id"), nullable=False, index=True)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), index=True)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     config_text = Column(Text, nullable=True)
     config_hash = Column(String(64), nullable=True)  # SHA256
     destination_type = Column(String(50), nullable=True)

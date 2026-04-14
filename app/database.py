@@ -113,37 +113,6 @@ def _apply_column_migrations() -> None:
             raw.commit()  # must commit: INSERT starts an implicit tx; pool reset calls rollback() otherwise
             raw.execute("PRAGMA foreign_keys=ON")
 
-        # v1.6.2: strip timezone suffix from datetime columns stored as
-        # "YYYY-MM-DD HH:MM:SS+00:00". SQLAlchemy's Cython str_to_datetime
-        # (pre-2.0.23) cannot parse the +00:00 suffix and raises IntegrityError
-        # at runtime when loading any model with datetime columns.
-        existing_tables = set(inspector.get_table_names())
-        datetime_cols: dict[str, list[str]] = {
-            "credentials":          ["created_at", "updated_at"],
-            "devices":              ["created_at", "updated_at"],
-            "backups":              ["timestamp",  "pruned_at"],
-            "job_runs":             ["started_at", "completed_at"],
-            "schedules":            ["last_run_at", "next_run_at", "created_at", "updated_at"],
-            "destinations":         ["created_at", "updated_at"],
-            "groups":               ["created_at"],
-            "notification_channels": ["created_at", "updated_at"],
-        }
-        for table, cols in datetime_cols.items():
-            if table not in existing_tables:
-                continue
-            # Re-query actual columns — inspector cache may be stale after
-            # earlier ALTER TABLE migrations in this same function call.
-            actual_cols = {r[1] for r in conn.execute(
-                text(f"PRAGMA table_info({table})")
-            ).fetchall()}
-            for col in cols:
-                if col not in actual_cols:
-                    continue
-                conn.execute(text(
-                    f"UPDATE {table} SET {col} = REPLACE({col}, '+00:00', '') "
-                    f"WHERE {col} LIKE '%+00:00'"
-                ))
-        conn.commit()
 
 
 def _fix_orphaned_credential_refs() -> None:
