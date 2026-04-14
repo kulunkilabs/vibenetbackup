@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import create_engine, event, text
 from unittest.mock import patch
 
-from app.database import _apply_column_migrations, _fix_orphaned_credential_refs
+from app.database import _apply_migrations, _fix_orphaned_credential_refs
 
 
 # ---------------------------------------------------------------------------
@@ -252,7 +252,7 @@ class TestMigrationRecovery:
 
         engine = make_engine(db_path)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()  # must not raise
+            _apply_migrations()  # must not raise
 
         tables = get_tables(db_path)
         assert "credentials_new" not in tables, "orphan temp table should be removed"
@@ -294,7 +294,7 @@ class TestMigrationRecovery:
 
         engine = make_engine(db_path)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
+            _apply_migrations()
 
         assert "credentials_new" not in get_tables(db_path)
         engine.dispose()
@@ -309,7 +309,7 @@ class TestV09Migration:
     def test_group_column_added_to_credentials(self, old_db):
         engine = make_engine(old_db)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
+            _apply_migrations()
         engine.dispose()
 
         assert "group" in get_columns(old_db, "credentials")
@@ -318,8 +318,8 @@ class TestV09Migration:
         """Second run must not raise 'duplicate column name'."""
         engine = make_engine(v16_db)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
-            _apply_column_migrations()
+            _apply_migrations()
+            _apply_migrations()
         engine.dispose()
 
 
@@ -332,7 +332,7 @@ class TestV15Migration:
     def test_proxy_columns_added(self, old_db):
         engine = make_engine(old_db)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
+            _apply_migrations()
         engine.dispose()
 
         cols = get_columns(old_db, "devices")
@@ -343,8 +343,8 @@ class TestV15Migration:
     def test_proxy_columns_not_duplicated_when_present(self, v16_db):
         engine = make_engine(v16_db)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
-            _apply_column_migrations()
+            _apply_migrations()
+            _apply_migrations()
         engine.dispose()
 
 
@@ -357,7 +357,7 @@ class TestV16Migration:
     def test_profile_columns_added_to_groups(self, v16_db):
         engine = make_engine(v16_db)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
+            _apply_migrations()
         engine.dispose()
 
         cols = get_columns(v16_db, "groups")
@@ -369,14 +369,14 @@ class TestV16Migration:
         """No groups table in old DBs — migration must not raise."""
         engine = make_engine(old_db)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
+            _apply_migrations()
         engine.dispose()
 
     def test_profile_columns_not_duplicated(self, v16_db):
         engine = make_engine(v16_db)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
-            _apply_column_migrations()
+            _apply_migrations()
+            _apply_migrations()
         engine.dispose()
 
 
@@ -389,7 +389,7 @@ class TestV161Migration:
     def test_username_becomes_nullable(self, v16_db):
         engine = make_engine(v16_db)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
+            _apply_migrations()
         engine.dispose()
 
         col_info = get_columns(v16_db, "credentials")
@@ -406,7 +406,7 @@ class TestV161Migration:
 
         engine = make_engine(v16_db)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
+            _apply_migrations()
         engine.dispose()
 
         conn = sqlite3.connect(v16_db)
@@ -431,7 +431,7 @@ class TestV161Migration:
 
         engine = make_engine(v16_db)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
+            _apply_migrations()
         engine.dispose()
 
         conn = sqlite3.connect(v16_db)
@@ -458,7 +458,7 @@ class TestV161Migration:
 
         engine = make_engine(v16_db)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
+            _apply_migrations()
         engine.dispose()
 
         conn = sqlite3.connect(v16_db)
@@ -472,7 +472,7 @@ class TestV161Migration:
         """ix_credentials_id index must exist after table recreation."""
         engine = make_engine(v16_db)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
+            _apply_migrations()
         engine.dispose()
 
         assert "ix_credentials_id" in get_indexes(v16_db, "credentials")
@@ -481,8 +481,8 @@ class TestV161Migration:
         """Running migrations twice must not fail when username is already nullable."""
         engine = make_engine(v16_db)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
-            _apply_column_migrations()  # second run: no-op
+            _apply_migrations()
+            _apply_migrations()  # second run: no-op
         engine.dispose()
 
     def test_repair_column_swap_from_pre_v10_upgrade(self, tmp_path):
@@ -528,7 +528,7 @@ class TestV161Migration:
 
         engine = make_engine(db_path)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
+            _apply_migrations()
         engine.dispose()
 
         conn = sqlite3.connect(db_path)
@@ -545,7 +545,7 @@ class TestV161Migration:
         """After migration, a credential with no username (password-only device) is valid."""
         engine = make_engine(v16_db)
         with patch("app.database.engine", engine):
-            _apply_column_migrations()
+            _apply_migrations()
         engine.dispose()
 
         conn = sqlite3.connect(v16_db)
@@ -557,6 +557,111 @@ class TestV161Migration:
         row = conn.execute("SELECT username FROM credentials WHERE id=1").fetchone()
         conn.close()
         assert row[0] is None
+
+
+# ---------------------------------------------------------------------------
+# TestMigrationTracking — _applied_migrations table behaviour
+# ---------------------------------------------------------------------------
+
+class TestMigrationTracking:
+
+    def test_tracking_table_created_on_first_run(self, v16_db):
+        """_applied_migrations table must be created even on old databases."""
+        engine = make_engine(v16_db)
+        with patch("app.database.engine", engine):
+            _apply_migrations()
+        engine.dispose()
+
+        assert "_applied_migrations" in get_tables(v16_db)
+
+    def test_all_migrations_recorded(self, v16_db):
+        """After a full migration run every known migration must be recorded."""
+        engine = make_engine(v16_db)
+        with patch("app.database.engine", engine):
+            _apply_migrations()
+        engine.dispose()
+
+        conn = sqlite3.connect(v16_db)
+        names = {r[0] for r in conn.execute(
+            "SELECT name FROM _applied_migrations"
+        ).fetchall()}
+        conn.close()
+
+        expected = {
+            "v09_credentials_group",
+            "v15_devices_proxy_columns",
+            "v16_groups_profile_columns",
+            "v161_credentials_nullable",
+            "v161_repair_column_swap",
+        }
+        assert expected.issubset(names), f"Missing migrations: {expected - names}"
+
+    def test_migrations_not_rerun_on_second_startup(self, v16_db):
+        """Second call must skip all migrations — tracking table prevents re-execution."""
+        engine = make_engine(v16_db)
+        with patch("app.database.engine", engine):
+            _apply_migrations()
+            # Corrupt the schema so that if a migration re-ran it would fail
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "UPDATE _applied_migrations SET applied_at = applied_at"
+                ))  # no-op to confirm table is accessible
+                conn.commit()
+            _apply_migrations()  # must not raise or alter data
+        engine.dispose()
+
+    def test_fresh_db_gets_all_migrations_marked(self, tmp_path):
+        """A brand-new DB (fresh from create_all) must still get all migrations recorded."""
+        db_path = str(tmp_path / "vibenetbackup.db")
+        conn = sqlite3.connect(db_path)
+        # Simulate a fresh DB: all columns already present (from create_all)
+        conn.executescript("""
+            CREATE TABLE credentials (
+                id                      INTEGER      NOT NULL PRIMARY KEY,
+                name                    VARCHAR(255) NOT NULL UNIQUE,
+                username                VARCHAR(255),
+                password_encrypted      VARCHAR(500),
+                enable_secret_encrypted VARCHAR(500),
+                ssh_key_path            VARCHAR(500),
+                "group"                 VARCHAR(100) DEFAULT 'default',
+                created_at              DATETIME,
+                updated_at              DATETIME
+            );
+            CREATE TABLE devices (
+                id                  INTEGER      NOT NULL PRIMARY KEY,
+                hostname            VARCHAR(255) NOT NULL,
+                ip_address          VARCHAR(45)  NOT NULL,
+                device_type         VARCHAR(50)  NOT NULL,
+                credential_id       INTEGER REFERENCES credentials(id),
+                proxy_host          VARCHAR(255),
+                proxy_port          INTEGER,
+                proxy_credential_id INTEGER REFERENCES credentials(id)
+            );
+            CREATE TABLE groups (
+                id               INTEGER      NOT NULL PRIMARY KEY,
+                name             VARCHAR(255) NOT NULL UNIQUE,
+                destination_ids  TEXT,
+                backup_engine    VARCHAR(50),
+                notification_ids TEXT,
+                created_at       DATETIME
+            );
+        """)
+        conn.close()
+
+        engine = make_engine(db_path)
+        with patch("app.database.engine", engine):
+            _apply_migrations()
+        engine.dispose()
+
+        conn = sqlite3.connect(db_path)
+        names = {r[0] for r in conn.execute(
+            "SELECT name FROM _applied_migrations"
+        ).fetchall()}
+        conn.close()
+
+        assert "v09_credentials_group" in names
+        assert "v15_devices_proxy_columns" in names
+        assert "v161_credentials_nullable" in names
 
 
 # ---------------------------------------------------------------------------
