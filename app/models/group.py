@@ -13,4 +13,4 @@ class Group(Base):
     destination_ids = Column(JSON, nullable=True)       # list of destination IDs
     backup_engine = Column(String(50), nullable=True)   # engine override (optional)
     notification_ids = Column(JSON, nullable=True)       # notification channel IDs (optional)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

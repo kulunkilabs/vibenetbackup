@@ -206,8 +206,8 @@ class Device(Base):
     proxy_port = Column(Integer, nullable=True)
     proxy_credential_id = Column(Integer, ForeignKey("credentials.id"), nullable=True)
     notes = Column(String(1000), nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     credential = relationship("Credential", foreign_keys=[credential_id], back_populates="devices")
     proxy_credential = relationship("Credential", foreign_keys=[proxy_credential_id])

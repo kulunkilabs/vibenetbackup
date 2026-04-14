@@ -1,3 +1,3 @@
 """VIBENetBackup version information."""
 
-VERSION = "1.6.2"
+VERSION = "1.6.3"

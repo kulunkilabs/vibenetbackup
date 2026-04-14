@@ -28,5 +28,5 @@ class Destination(Base):
     enabled = Column(Boolean, default=True)
     retention_config = Column(JSON, nullable=True)
     # retention_config: {"daily": 14, "weekly": 6, "monthly": 12}
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

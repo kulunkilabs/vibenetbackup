@@ -20,8 +20,8 @@ class Credential(Base):
     enable_secret_encrypted = Column(String(500), nullable=True)
     ssh_key_path = Column(String(500), nullable=True)
     group = Column(String(100), nullable=True, default="default")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     devices = relationship("Device", foreign_keys="Device.credential_id", back_populates="credential")
 
