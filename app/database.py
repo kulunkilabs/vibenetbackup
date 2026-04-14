@@ -42,6 +42,8 @@ def init_db() -> None:
 
 def _apply_column_migrations() -> None:
     """Add columns introduced in later versions to existing databases."""
+    import logging
+    logger = logging.getLogger("vibenetbackup")
     with engine.connect() as conn:
         from sqlalchemy import text, inspect
         # Clean up any temp tables left behind by interrupted migrations
@@ -106,13 +108,51 @@ def _apply_column_migrations() -> None:
                     updated_at DATETIME
                 )
             """)
-            raw.execute("INSERT INTO credentials_new SELECT * FROM credentials")
+            # Explicit column list avoids positional mismatch when the old table
+            # had 'group' added at the end via ALTER TABLE (pre-v1.0 → v1.0 upgrade)
+            # rather than at its model-definition position (before created_at/updated_at).
+            raw.execute("""
+                INSERT INTO credentials_new
+                    (id, name, username, password_encrypted, enable_secret_encrypted,
+                     ssh_key_path, "group", created_at, updated_at)
+                SELECT id, name, username, password_encrypted, enable_secret_encrypted,
+                       ssh_key_path, "group", created_at, updated_at
+                FROM credentials
+            """)
             raw.execute("DROP TABLE credentials")
             raw.execute("ALTER TABLE credentials_new RENAME TO credentials")
             raw.execute("CREATE INDEX IF NOT EXISTS ix_credentials_id ON credentials (id)")
             raw.commit()  # must commit: INSERT starts an implicit tx; pool reset calls rollback() otherwise
             raw.execute("PRAGMA foreign_keys=ON")
 
+        # v1.6.1 data repair: databases upgraded from pre-v1.0 had 'group' appended
+        # at the end by ALTER TABLE, so the v1.6.1 SELECT * INSERT misaligned columns:
+        # old group='default' landed in new updated_at (DATETIME), and old created_at
+        # (a datetime string) landed in new group (VARCHAR). This causes
+        # "Invalid isoformat string: 'default'" on every credential load.
+        # Detect and repair: updated_at='default' → NULL; group=datetime-like → 'default'
+        cred_cols_now = {r[1] for r in conn.execute(text("PRAGMA table_info(credentials)")).fetchall()}
+        invalid_count = 0
+        if "updated_at" in cred_cols_now:
+            invalid_count = conn.execute(text(
+                "SELECT COUNT(*) FROM credentials WHERE updated_at = 'default'"
+            )).scalar() or 0
+        if invalid_count:
+            logger.warning(
+                "Repairing %d credential row(s) with invalid updated_at from v1.6.1 "
+                "column-order mismatch — resetting updated_at=NULL and group='default'",
+                invalid_count,
+            )
+            conn.execute(text(
+                "UPDATE credentials SET updated_at = NULL WHERE updated_at = 'default'"
+            ))
+            # group now contains the old created_at datetime string (e.g. '2024-01-15 12:00:00')
+            # Reset rows where group looks like a datetime (YYYY-MM-DD pattern)
+            conn.execute(text(
+                "UPDATE credentials SET \"group\" = 'default' "
+                "WHERE \"group\" LIKE '____-__-__%'"
+            ))
+            conn.commit()
 
 
 def _fix_orphaned_credential_refs() -> None:

@@ -485,6 +485,62 @@ class TestV161Migration:
             _apply_column_migrations()  # second run: no-op
         engine.dispose()
 
+    def test_repair_column_swap_from_pre_v10_upgrade(self, tmp_path):
+        """
+        Regression: pre-v1.0 databases had 'group' added at the end via ALTER TABLE.
+        The original v1.6.1 SELECT * INSERT mapped old group='default' into new
+        updated_at (DATETIME), causing 'Invalid isoformat string: default' on load.
+        The repair migration must detect and fix this silently.
+        """
+        db_path = str(tmp_path / "vibenetbackup.db")
+        conn = sqlite3.connect(db_path)
+        # Simulate the BROKEN post-v1.6.1 state:
+        # updated_at holds 'default' (from the old group column)
+        # group holds a datetime string (from the old created_at column)
+        conn.executescript("""
+            CREATE TABLE credentials (
+                id                      INTEGER      NOT NULL PRIMARY KEY,
+                name                    VARCHAR(255) NOT NULL UNIQUE,
+                username                VARCHAR(255),
+                password_encrypted      VARCHAR(500),
+                enable_secret_encrypted VARCHAR(500),
+                ssh_key_path            VARCHAR(500),
+                "group"                 VARCHAR(100) DEFAULT 'default',
+                created_at              DATETIME,
+                updated_at              DATETIME
+            );
+            CREATE TABLE devices (
+                id            INTEGER      NOT NULL PRIMARY KEY,
+                hostname      VARCHAR(255) NOT NULL,
+                ip_address    VARCHAR(45)  NOT NULL,
+                device_type   VARCHAR(50)  NOT NULL,
+                credential_id INTEGER REFERENCES credentials(id),
+                proxy_host    VARCHAR(255),
+                proxy_port    INTEGER,
+                proxy_credential_id INTEGER REFERENCES credentials(id)
+            );
+            INSERT INTO credentials (id, name, username, "group", created_at, updated_at)
+            VALUES
+                (1, 'router-cred', 'admin', '2024-01-15 12:00:00.123456', '2024-01-15 12:00:00.123456', 'default'),
+                (2, 'server-cred', 'root',  '2024-03-20 08:30:00',        '2024-03-20 08:30:00',        'default');
+        """)
+        conn.close()
+
+        engine = make_engine(db_path)
+        with patch("app.database.engine", engine):
+            _apply_column_migrations()
+        engine.dispose()
+
+        conn = sqlite3.connect(db_path)
+        rows = conn.execute(
+            "SELECT name, \"group\", updated_at FROM credentials ORDER BY id"
+        ).fetchall()
+        conn.close()
+
+        for name, group, updated_at in rows:
+            assert updated_at is None, f"updated_at for {name!r} should be NULL, got {updated_at!r}"
+            assert group == "default", f"group for {name!r} should be 'default', got {group!r}"
+
     def test_password_only_credential_can_be_inserted_after_migration(self, v16_db):
         """After migration, a credential with no username (password-only device) is valid."""
         engine = make_engine(v16_db)
