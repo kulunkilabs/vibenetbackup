@@ -139,19 +139,29 @@ async def _save_binary_local(
     db: Session,
 ) -> str:
     """Save binary file to the local backup directory, return saved path."""
-    from app.modules.destinations.local import LocalDestination
     from app.config import get_settings
     import os
 
-    # Resolve base dir from configured destination or default
+    # Resolve base dir from a configured LOCAL destination only.
+    # Binary (archive) backups are currently local-only; non-local destinations
+    # (SMB, Git) are not supported for binary payloads and are skipped with a warning.
     base_dir = get_settings().BACKUP_DIR
     if destination_ids:
-        dest = db.query(Destination).filter(
+        dests = db.query(Destination).filter(
             Destination.id.in_(destination_ids),
             Destination.enabled == True,
-        ).first()
-        if dest and dest.config_json:
-            base_dir = dest.config_json.get("path", base_dir)
+        ).all()
+        local_dest = next((d for d in dests if d.dest_type.value == "local"), None)
+        non_local = [d for d in dests if d.dest_type.value != "local"]
+        if non_local:
+            names = ", ".join(d.dest_type.value for d in non_local)
+            logger.warning(
+                "Binary/archive backups do not yet support non-local destinations (%s) "
+                "for %s — saving locally only.",
+                names, device.hostname,
+            )
+        if local_dest and local_dest.config_json:
+            base_dir = local_dest.config_json.get("path", base_dir)
 
     safe_hostname = os.path.basename(device.hostname.replace("\\", "/")) or "unknown"
     device_dir = os.path.join(base_dir, safe_hostname)
@@ -209,6 +219,7 @@ async def _handle_text_backup(
 
     saved_path = None
     dest_type = "local"
+    save_errors: list[str] = []
 
     for dest in destinations:
         try:
@@ -222,6 +233,18 @@ async def _handle_text_backup(
             logger.info("Saved backup for %s to %s: %s", device.hostname, dest_type, saved_path)
         except Exception as e:
             logger.error("Failed to save to %s for %s: %s", dest.dest_type.value, device.hostname, e)
+            save_errors.append(f"{dest.dest_type.value}: {e}")
+
+    if destinations and saved_path is None:
+        # Every configured destination failed — do not report success
+        backup.config_text = config_text
+        backup.config_hash = config_hash
+        backup.file_size = len(config_text)
+        backup.status = BackupStatus.failed
+        backup.error_message = "All destination(s) failed: " + "; ".join(save_errors)
+        db.commit()
+        logger.error("Backup for %s failed — no destination saved successfully", device.hostname)
+        return backup
 
     if not destinations:
         from app.modules.destinations.local import LocalDestination

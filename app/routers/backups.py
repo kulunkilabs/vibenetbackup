@@ -19,6 +19,46 @@ from app.modules.backup_service import run_backup_for_device
 router = APIRouter(prefix="/backups")
 
 
+async def _delete_backup_file(db, backup: Backup) -> None:
+    """Delete the file(s) for a backup record using the appropriate destination backend."""
+    import logging
+    from app.modules.destinations import get_destination
+
+    log = logging.getLogger(__name__)
+
+    manifest = _parse_archive_manifest(backup.config_text) if backup.config_text else None
+    file_path = manifest.get("path") if manifest else backup.destination_path
+    if not file_path:
+        return
+
+    dest_type = backup.destination_type or "local"
+
+    # For non-local destinations, look up the destination record to get its config
+    # (needed for credentials/share paths on SMB, Git, etc.)
+    config: dict = {}
+    if dest_type != "local":
+        dest_record = (
+            db.query(Destination)
+            .filter(Destination.dest_type == dest_type, Destination.enabled == True)
+            .first()
+        )
+        if dest_record and dest_record.config_json:
+            config = dest_record.config_json
+        else:
+            log.warning(
+                "Cannot find active destination of type '%s' to delete backup file %s — "
+                "file may be orphaned on the remote storage.",
+                dest_type, file_path,
+            )
+            return
+
+    try:
+        backend = get_destination(dest_type)
+        await backend.delete(file_path, config)
+    except Exception as e:
+        log.error("Failed to delete backup file %s via %s backend: %s", file_path, dest_type, e)
+
+
 def _parse_archive_manifest(config_text: str) -> dict | None:
     """Parse a JSON manifest for archive-based backups (zip or tgz)."""
     try:
@@ -106,10 +146,7 @@ async def batch_delete_backups(
         backup = db.query(Backup).get(bid_int)
         if not backup:
             continue
-        manifest = _parse_archive_manifest(backup.config_text) if backup.config_text else None
-        file_path = manifest.get("path") if manifest else backup.destination_path
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
+        await _delete_backup_file(db, backup)
         db.delete(backup)
 
     db.commit()
@@ -304,12 +341,7 @@ async def delete_backup(backup_id: int, db: Session = Depends(get_db)):
     if not backup:
         raise HTTPException(status_code=404, detail="Backup not found")
 
-    # Delete the file on disk
-    manifest = _parse_archive_manifest(backup.config_text) if backup.config_text else None
-    file_path = manifest.get("path") if manifest else backup.destination_path
-    if file_path and os.path.exists(file_path):
-        os.remove(file_path)
-
+    await _delete_backup_file(db, backup)
     db.delete(backup)
     db.commit()
     return RedirectResponse(url="/backups", status_code=303)

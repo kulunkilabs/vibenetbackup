@@ -291,13 +291,19 @@ async def job_history(
 
 @router.post("/history/{run_id}/delete")
 async def delete_job_run(run_id: int, request: Request, db: Session = Depends(get_db)):
-    """Delete a job run record and its associated backups."""
+    """Delete a job run record and its associated backups (including files)."""
     from app.models.backup import Backup
+    from app.routers.backups import _delete_backup_file
 
     run = db.query(JobRun).get(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Job run not found")
-    db.query(Backup).filter(Backup.job_run_id == run_id).delete()
+
+    backups = db.query(Backup).filter(Backup.job_run_id == run_id).all()
+    for backup in backups:
+        await _delete_backup_file(db, backup)
+        db.delete(backup)
+
     db.delete(run)
     db.commit()
 
