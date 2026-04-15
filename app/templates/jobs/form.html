@@ -15,7 +15,7 @@
                 <div class="col-md-6">
                     <label class="form-label">Cron Expression</label>
                     <input type="text" name="cron_expression" class="form-control" value="{{ schedule.cron_expression if schedule else '0 2 * * *' }}" required>
-                    <div class="form-text">Format: minute hour day month weekday</div>
+                    <div class="form-text">Format: minute hour day month weekday — <code>0 0 * * *</code> = midnight (start of each new day, always shows tomorrow's date)</div>
                 </div>
                 <div class="col-12">
                     <label class="form-label">Quick Presets</label>

@@ -274,7 +274,32 @@ def _localtime(dt, fmt="%Y-%m-%d %H:%M:%S"):
         dt = dt.replace(tzinfo=_tz.utc)
     return dt.astimezone(_LOCAL_TZ).strftime(fmt)
 
+
+def _timeuntil(dt):
+    """Return a human-readable 'in Xh Ym' string until a future datetime."""
+    from datetime import datetime as _dt
+    if dt is None:
+        return ""
+    now = _dt.now(_tz.utc)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_tz.utc)
+    diff = dt - now
+    total = int(diff.total_seconds())
+    if total <= 0:
+        return "now"
+    if total < 60:
+        return f"in {total}s"
+    if total < 3600:
+        return f"in {total // 60}m"
+    if total < 86400:
+        h, m = divmod(total // 60, 60)
+        return f"in {h}h {m}m" if m else f"in {h}h"
+    d = total // 86400
+    return f"in {d}d"
+
+
 app.state.templates.env.filters["localtime"] = _localtime
+app.state.templates.env.filters["timeuntil"] = _timeuntil
 
 # Include routers
 from app.routers import dashboard, devices, credentials, backups, jobs, destinations, api, groups, notifications
