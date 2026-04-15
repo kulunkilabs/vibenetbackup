@@ -2,9 +2,11 @@ name: Build and Push Docker Image
 
 on:
   push:
+    branches:
+      - main          # updates :latest on every main push (no version bump needed)
     tags:
-      - "v*"
-  workflow_dispatch:
+      - "v*"          # also pushes a versioned tag (e.g. :1.6.6) on releases
+  workflow_dispatch:  # manual trigger from GitHub UI / gh CLI
 
 env:
   REGISTRY: ghcr.io
