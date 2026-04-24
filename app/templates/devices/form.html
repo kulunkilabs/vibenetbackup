@@ -53,9 +53,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateProxyVisibility() {
         const proxySection = document.getElementById('proxy-section');
-        if (proxySection) {
-            proxySection.style.display = proxyEngines.includes(engine.value) ? '' : 'none';
-        }
+        if (!proxySection) return;
+        // Keep the section visible if the device already has proxy values
+        // saved — otherwise editing a device whose engine was later changed to
+        // one without proxy support would hide the orphan data and give users
+        // no way to clear it.
+        const hostInput = proxySection.querySelector('input[name="proxy_host"]');
+        const portInput = proxySection.querySelector('input[name="proxy_port"]');
+        const credSelect = proxySection.querySelector('select[name="proxy_credential_id"]');
+        const hasExistingProxy =
+            (hostInput && hostInput.value.trim() !== '') ||
+            (portInput && portInput.value.trim() !== '') ||
+            (credSelect && credSelect.value !== '');
+        const supported = proxyEngines.includes(engine.value);
+        proxySection.style.display = (supported || hasExistingProxy) ? '' : 'none';
     }
 
     engine.addEventListener('change', function() {
@@ -153,7 +164,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="col-12">
                             <span class="fw-semibold small text-secondary">
                                 <i class="bi bi-diagram-3"></i> SSH Proxy / Jump Host
-                                <span class="fw-normal text-muted">— leave blank for direct connection</span>
+                                <span class="fw-normal text-muted">— applies to Netmiko and SCP engines only; leave blank for direct connection</span>
                             </span>
                         </div>
                         <div class="col-md-6">
