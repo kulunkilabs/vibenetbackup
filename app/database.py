@@ -41,6 +41,7 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _apply_migrations()
     _fix_orphaned_credential_refs()
+    _check_secret_key_decrypts()
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +216,77 @@ def _apply_migrations() -> None:
         #   • function must be idempotent (check before changing)
         #   • use explicit column names in any INSERT … SELECT
         #   • test with: old_db fixture (v0.8), v16_db fixture (v1.6), fresh DB
+
+
+def _check_secret_key_decrypts() -> None:
+    """Warn loudly at startup if existing encrypted data can't be decrypted with
+    the current SECRET_KEY. Catches the #1 upgrade footgun: key loss / mismatch
+    (deleted /app/data/.secret_key, regenerated .env, volume wipe, etc.).
+
+    Probes one credential password + one notification channel URL. If either
+    decrypt fails with InvalidToken, logs an actionable recovery message.
+    Any other error is reported but silently — we don't want to block startup.
+    """
+    from cryptography.fernet import InvalidToken
+    from app.models.credential import Credential
+    from app.models.notification import NotificationChannel
+
+    def _probe() -> str | None:
+        with SessionLocal() as db:
+            cred = db.query(Credential).filter(
+                Credential.password_encrypted.isnot(None)
+            ).first()
+            if cred:
+                try:
+                    cred.get_password()
+                except InvalidToken:
+                    return "credentials"
+                except Exception:
+                    pass  # other errors aren't key-mismatch; ignore
+
+            notif = db.query(NotificationChannel).filter(
+                NotificationChannel.apprise_url_encrypted.isnot(None)
+            ).first()
+            if notif:
+                try:
+                    notif.get_url()
+                except InvalidToken:
+                    return "notifications"
+                except Exception:
+                    pass
+        return None
+
+    try:
+        which = _probe()
+    except Exception as e:
+        logger.debug("SECRET_KEY self-test skipped: %s", e)
+        return
+
+    if which is None:
+        return  # nothing to verify, or everything decrypts cleanly
+
+    logger.warning(
+        "═══════════════════════════════════════════════════════════════\n"
+        "  SECRET_KEY MISMATCH — existing encrypted data cannot be decrypted.\n"
+        "  The SECRET_KEY in your environment does not match the key that\n"
+        "  encrypted data currently in the database (detected via %s).\n"
+        "\n"
+        "  Common causes:\n"
+        "    - Docker:    /app/data/.secret_key was deleted or the data volume\n"
+        "                 was wiped between container recreates\n"
+        "    - Shell:     .env was regenerated and SECRET_KEY changed\n"
+        "    - Migration: key was never copied when moving hosts\n"
+        "\n"
+        "  Recovery:\n"
+        "    1. Restore the previous SECRET_KEY if you have a backup, OR\n"
+        "    2. Clear + re-enter credentials / notifications via the UI:\n"
+        "         /credentials   /notifications\n"
+        "\n"
+        "  Until one of those is done, backups that need encrypted credentials\n"
+        "  will fail with empty error messages (str(InvalidToken) is '').\n"
+        "═══════════════════════════════════════════════════════════════",
+        which,
+    )
 
 
 def _fix_orphaned_credential_refs() -> None:

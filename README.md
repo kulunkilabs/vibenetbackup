@@ -110,6 +110,7 @@ Open `http://<your-server-ip>:5005` — default credentials are shown during ins
 ## Changelog
 
 ### v1.6.7 (2026-04-23)
+- **`SECRET_KEY` self-test at startup** — `init_db()` now probe-decrypts one credential + one notification channel. If the current `SECRET_KEY` can't decrypt existing ciphertext (data volume wiped, `.env` regenerated, migration without copying the key, etc.), a clear WARNING is logged with recovery steps instead of silent empty-error backup failures at runtime
 - **Per-device backup history** — new timeline view at `/backups/device/<id>/history` with "First / Changed / Unchanged" markers computed from config hash, and checkboxes to pick any two revisions to compare
 - **Diff-any-two-backups view** — new compare page at `/backups/compare?a=<id>&b=<id>` renders a unified diff between arbitrary backups of the same device; handles identical-config, archive-bundle, and a/b-order-swap cases
 - **Manual backup now honors destination selection** — the trigger form gained a destination checkbox group; the POST handler accepts `destination_ids` so manual runs write to the destinations you pick instead of falling back to "first local"
