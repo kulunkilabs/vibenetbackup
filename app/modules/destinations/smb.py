@@ -122,6 +122,42 @@ class SMBDestination(DestinationBackend):
         logger.info("SMB: saved backup to %s", path)
         return path
 
+    async def save_binary(
+        self,
+        hostname: str,
+        data: bytes,
+        extension: str,
+        config: dict[str, Any],
+    ) -> str:
+        server = config["server"]
+        share = config["share"]
+        username = config.get("username", "")
+        password = config.get("password", "")
+        base_path = config.get("base_path", "backups")
+
+        safe_hostname = hostname.replace("\\", "/").split("/")[-1] or "unknown"
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
+        remote_dir = f"{base_path}/{safe_hostname}"
+        # Archives are already compressed; ignore any "compress" flag for binary saves.
+        remote_path = f"{remote_dir}/{timestamp}{extension}"
+
+        def _smb_write():
+            import smbclient
+            smbclient.register_session(server, username=username, password=password)
+
+            unc_dir = f"\\\\{server}\\{share}\\{remote_dir.replace('/', '\\')}"
+            unc_path = f"\\\\{server}\\{share}\\{remote_path.replace('/', '\\')}"
+
+            smbclient.makedirs(unc_dir, exist_ok=True)
+            with smbclient.open_file(unc_path, mode="wb") as f:
+                f.write(data)
+
+            return unc_path
+
+        path = await asyncio.to_thread(_smb_write)
+        logger.info("SMB: saved binary backup to %s (%d bytes)", path, len(data))
+        return path
+
     async def delete(self, path: str, config: dict[str, Any]) -> None:
         server = config["server"]
         username = config.get("username", "")

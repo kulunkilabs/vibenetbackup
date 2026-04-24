@@ -1,0 +1,19 @@
+{# Render one colored Bootstrap badge per destination type.
+   `dest_type` is the comma-joined string stored on Backup rows
+   (e.g. "local, smb" or "local, smb, git"). Shows '-' when empty. #}
+{%- if not dest_type -%}
+<span class="text-muted">-</span>
+{%- else -%}
+{%- for d in dest_type.split(',') -%}
+{%- set t = d.strip() -%}
+{%- if t == 'local' -%}
+<span class="badge bg-secondary me-1"><i class="bi bi-hdd"></i> local</span>
+{%- elif t == 'smb' -%}
+<span class="badge bg-info me-1"><i class="bi bi-pc-display-horizontal"></i> smb</span>
+{%- elif t in ('git', 'gitea', 'github', 'forgejo') -%}
+<span class="badge bg-primary me-1"><i class="bi bi-git"></i> {{ t }}</span>
+{%- else -%}
+<span class="badge bg-dark me-1">{{ t }}</span>
+{%- endif -%}
+{%- endfor -%}
+{%- endif -%}

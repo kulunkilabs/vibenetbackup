@@ -26,6 +26,29 @@
                 <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('input[name=device_ids]').forEach(c => c.checked = true)">Select All</button>
                 <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('input[name=device_ids]').forEach(c => c.checked = false)">Deselect All</button>
             </div>
+
+            <div class="mb-3">
+                <label class="form-label">
+                    Destinations
+                    <small class="text-muted">— leave empty to use each device's group defaults (or local fallback)</small>
+                </label>
+                <div class="row g-2">
+                    {% for d in destinations %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="destination_ids" value="{{ d.id }}" id="dest-{{ d.id }}">
+                            <label class="form-check-label" for="dest-{{ d.id }}">
+                                {{ d.name }}
+                                <small class="text-muted">({{ d.dest_type.value }})</small>
+                            </label>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="col-12"><small class="text-muted">No enabled destinations configured.</small></div>
+                    {% endfor %}
+                </div>
+            </div>
+
             <button type="submit" class="btn btn-primary"><i class="bi bi-play-fill"></i> Start Backup</button>
             <a href="/backups" class="btn btn-outline-secondary">Cancel</a>
         </form>

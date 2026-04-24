@@ -5,8 +5,18 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2><i class="bi bi-archive"></i> Backup #{{ backup.id }}</h2>
     <div>
+        {% if device %}
+        <a href="/backups/device/{{ device.id }}/history" class="btn btn-outline-light">
+            <i class="bi bi-clock-history"></i> History
+        </a>
+        {% endif %}
+        {% if prev_backup %}
+        <a href="/backups/compare?a={{ prev_backup.id }}&b={{ backup.id }}" class="btn btn-outline-info ms-1">
+            <i class="bi bi-file-diff"></i> Compare with previous
+        </a>
+        {% endif %}
         {% if manifest %}
-        <a href="/backups/{{ backup.id }}/download" class="btn btn-success">
+        <a href="/backups/{{ backup.id }}/download" class="btn btn-success ms-1">
             {% if manifest.type == 'tgz' %}
             <i class="bi bi-file-earmark-zip"></i> Download TGZ
             {% else %}
@@ -50,7 +60,7 @@
                         <td>{% if backup.file_size %}{% if backup.file_size > 1048576 %}{{ (backup.file_size / 1048576)|round(1) }} MB{% else %}{{ (backup.file_size / 1024)|round(1) }} KB{% endif %}{% else %}-{% endif %}</td>
                     </tr>
                     <tr><td class="text-muted">Hash (SHA256)</td><td><code class="small">{{ backup.config_hash[:16] ~ '...' if backup.config_hash else '-' }}</code></td></tr>
-                    <tr><td class="text-muted">Destination</td><td>{{ backup.destination_type or '-' }}</td></tr>
+                    <tr><td class="text-muted">Destination</td><td>{% with dest_type=backup.destination_type %}{% include 'partials/destination_badges.html' %}{% endwith %}</td></tr>
                     {% if backup.destination_path %}<tr><td class="text-muted">Path</td><td><code class="small">{{ backup.destination_path }}</code></td></tr>{% endif %}
                     {% if manifest %}<tr><td class="text-muted">Files</td><td>{{ manifest.file_count }} files collected</td></tr>{% endif %}
                     {% if backup.error_message %}<tr><td class="text-muted">Error</td><td class="text-danger">{{ backup.error_message }}</td></tr>{% endif %}

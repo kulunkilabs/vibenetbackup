@@ -2,7 +2,7 @@
 
 Network device configuration backup manager with multi-engine support, automated scheduling, and retention policies.
 
-**Version:** 1.5.7 | **License:** MIT
+**Version:** 1.6.7 | **License:** MIT
 
 <p align="center">
   <img src="docs/screenshots/screensh_01.png" alt="VIBENetBackup Dashboard" width="900"/>
@@ -108,6 +108,14 @@ Open `http://<your-server-ip>:5005` — default credentials are shown during ins
 ---
 
 ## Changelog
+
+### v1.6.7 (2026-04-23)
+- **Per-device backup history** — new timeline view at `/backups/device/<id>/history` with "First / Changed / Unchanged" markers computed from config hash, and checkboxes to pick any two revisions to compare
+- **Diff-any-two-backups view** — new compare page at `/backups/compare?a=<id>&b=<id>` renders a unified diff between arbitrary backups of the same device; handles identical-config, archive-bundle, and a/b-order-swap cases
+- **Manual backup now honors destination selection** — the trigger form gained a destination checkbox group; the POST handler accepts `destination_ids` so manual runs write to the destinations you pick instead of falling back to "first local"
+- **Multi-destination recording** — when a backup writes to multiple destinations (e.g. local + SMB), the `Backup` row now records all of them (`destination_type` = `"local, smb"`), displayed as colored badges in the list / detail / history views. Previously only the last successful destination showed
+- **Proxmox → SMB / remote destinations** — binary/archive backups (Proxmox tarballs) now ship to every selected destination, not only local. New optional `save_binary(hostname, data, extension, config)` method on `DestinationBackend`; `LocalDestination` and `SMBDestination` implement it; git-family destinations are skipped with a warning (archives in git are unusual)
+- **`.dockerignore`** — added to keep `.env`, `staging*.db`, `ssh_keys/`, `backups/`, `venv/`, `.git/`, and test caches out of the Docker build context
 
 ### v1.5.7 (2026-04-10)
 - **SSH Proxy / Jump Host** — Netmiko and SCP engines can now connect through a bastion/jump host before reaching the target device. Useful for remote sites where devices are only reachable via an intermediate SSH server (e.g. autossh tunnels). Configure per device: proxy host, proxy port, and optionally a separate proxy credential when the jump host uses different credentials than the device

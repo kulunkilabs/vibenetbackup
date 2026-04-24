@@ -5,6 +5,8 @@ __pycache__/
 *.db
 backups/*
 !backups/.gitkeep
+staging-backups/*
+!staging-backups/.gitkeep
 ssh_keys/*
 .venv/
 *.egg-info/

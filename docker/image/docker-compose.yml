@@ -1,5 +1,5 @@
 # VIBENetBackup — Pre-built Image
-# Version: 1.6.6
+# Version: 1.6.7
 #
 # Uses the pre-built image from GitHub Container Registry.
 # No need to clone the repo or build anything.
@@ -15,7 +15,7 @@
 #   docker compose pull && docker compose up -d
 #
 # To build and push a new image to the registry, run from repo root:
-#   bash docker/build-and-push.sh 1.5.6
+#   bash docker/build-and-push.sh 1.6.7
 
 services:
   vibenetbackup:

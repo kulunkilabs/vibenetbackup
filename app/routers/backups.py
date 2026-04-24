@@ -153,6 +153,101 @@ async def batch_delete_backups(
     return RedirectResponse(url="/backups", status_code=303)
 
 
+@router.get("/device/{device_id}/history")
+async def device_history(
+    device_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Full backup timeline for a device with compare/diff tooling."""
+    device = db.query(Device).get(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    backups = (
+        db.query(Backup)
+        .filter(Backup.device_id == device_id)
+        .order_by(Backup.timestamp.desc())
+        .all()
+    )
+
+    # Precompute diff-vs-previous-success hint (same hash → unchanged) so the
+    # timeline can show changed/unchanged without running difflib per row.
+    prev_hash_by_id: dict[int, str | None] = {}
+    ordered = list(reversed(backups))  # chronological
+    last_hash: str | None = None
+    for b in ordered:
+        if b.status == BackupStatus.success:
+            prev_hash_by_id[b.id] = last_hash
+            last_hash = b.config_hash
+        else:
+            prev_hash_by_id[b.id] = last_hash
+    for b in backups:
+        b.prev_hash = prev_hash_by_id.get(b.id)
+
+    return request.app.state.templates.TemplateResponse(
+        request,
+        "backups/history.html",
+        {"device": device, "backups": backups},
+    )
+
+
+@router.get("/compare")
+async def compare_backups(
+    request: Request,
+    a: int,
+    b: int,
+    db: Session = Depends(get_db),
+):
+    """Unified diff between two backups of the same device."""
+    import difflib
+    backup_a = db.query(Backup).get(a)
+    backup_b = db.query(Backup).get(b)
+    if not backup_a or not backup_b:
+        raise HTTPException(status_code=404, detail="One or both backups not found")
+    if backup_a.device_id != backup_b.device_id:
+        raise HTTPException(status_code=400, detail="Backups must belong to the same device")
+    if backup_a.id == backup_b.id:
+        raise HTTPException(status_code=400, detail="Pick two different backups")
+
+    # Order so 'a' is older → diff reads as older→newer
+    if backup_a.timestamp and backup_b.timestamp and backup_a.timestamp > backup_b.timestamp:
+        backup_a, backup_b = backup_b, backup_a
+
+    device = db.query(Device).get(backup_a.device_id)
+    manifest_a = _parse_archive_manifest(backup_a.config_text) if backup_a.config_text else None
+    manifest_b = _parse_archive_manifest(backup_b.config_text) if backup_b.config_text else None
+
+    diff_html = None
+    identical = False
+    archive_backup = bool(manifest_a or manifest_b)
+    if not archive_backup and backup_a.config_text and backup_b.config_text:
+        if backup_a.config_text == backup_b.config_text:
+            identical = True
+        else:
+            diff_lines = difflib.unified_diff(
+                backup_a.config_text.splitlines(keepends=True),
+                backup_b.config_text.splitlines(keepends=True),
+                fromfile=f"#{backup_a.id} ({backup_a.timestamp})",
+                tofile=f"#{backup_b.id} ({backup_b.timestamp})",
+                lineterm="",
+            )
+            diff_html = "\n".join(diff_lines)
+
+    return request.app.state.templates.TemplateResponse(
+        request,
+        "backups/compare.html",
+        {
+            "device": device,
+            "backup_a": backup_a,
+            "backup_b": backup_b,
+            "diff_html": diff_html,
+            "archive_backup": archive_backup,
+            "identical": identical,
+        },
+    )
+
+
 @router.get("/trigger")
 async def trigger_form(request: Request, db: Session = Depends(get_db)):
     devices = db.query(Device).filter(Device.enabled == True).order_by(Device.hostname).all()
@@ -167,12 +262,14 @@ async def trigger_form(request: Request, db: Session = Depends(get_db)):
 async def trigger_backup(
     request: Request,
     device_ids: list[int] = Form(...),
+    destination_ids: list[int] = Form(default=[]),
     db: Session = Depends(get_db),
 ):
+    dest_ids = destination_ids or None
     for device_id in device_ids:
         device = db.query(Device).get(device_id)
         if device:
-            await run_backup_for_device(db, device)
+            await run_backup_for_device(db, device, destination_ids=dest_ids)
     return RedirectResponse(url="/backups", status_code=303)
 
 

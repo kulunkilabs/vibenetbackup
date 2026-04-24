@@ -1,0 +1,45 @@
+# Secrets and local config — never bake into image
+.env
+.env.*
+!.env.example
+
+# Local databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Local backups and key material
+backups/
+staging-backups/
+ssh_keys/
+
+# Virtual environments
+venv/
+.venv/
+
+# Git + CI metadata
+.git/
+.github/
+.gitignore
+
+# Python build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Editor / tooling
+.codex
+.vscode/
+.idea/
+*.swp
+
+# Tests and developer scripts (keep image lean)
+tests/
+docs/
+staging.db
+vibenetbackup.db

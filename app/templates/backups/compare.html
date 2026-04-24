@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Compare #{{ backup_a.id }} ↔ #{{ backup_b.id }} - VIBENetBackup{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>
+        <i class="bi bi-file-diff"></i>
+        Compare backups
+        <small class="fs-6 text-muted">{{ device.hostname if device else 'Unknown' }}</small>
+    </h2>
+    <div>
+        <a href="/backups/device/{{ backup_a.device_id }}/history" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Back to History
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <span class="badge bg-secondary">Older</span>
+                <a href="/backups/{{ backup_a.id }}" class="ms-2">#{{ backup_a.id }}</a>
+            </div>
+            <div class="card-body py-2">
+                <div class="small">
+                    <div><span class="text-muted">Timestamp:</span> {{ backup_a.timestamp|localtime }}</div>
+                    <div><span class="text-muted">Hash:</span> <code>{{ backup_a.config_hash[:16] if backup_a.config_hash else '-' }}</code></div>
+                    <div><span class="text-muted">Size:</span> {{ (backup_a.file_size / 1024)|round(1) if backup_a.file_size else '-' }} KB</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <span class="badge bg-info">Newer</span>
+                <a href="/backups/{{ backup_b.id }}" class="ms-2">#{{ backup_b.id }}</a>
+            </div>
+            <div class="card-body py-2">
+                <div class="small">
+                    <div><span class="text-muted">Timestamp:</span> {{ backup_b.timestamp|localtime }}</div>
+                    <div><span class="text-muted">Hash:</span> <code>{{ backup_b.config_hash[:16] if backup_b.config_hash else '-' }}</code></div>
+                    <div><span class="text-muted">Size:</span> {{ (backup_b.file_size / 1024)|round(1) if backup_b.file_size else '-' }} KB</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if archive_backup %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    One or both of these backups are archive bundles (zip / tar.gz). Archive-level
+    diffing isn't supported — open each backup individually to inspect files.
+</div>
+{% elif identical %}
+<div class="alert alert-success">
+    <i class="bi bi-check-circle"></i>
+    Configurations are identical (same hash, no differences).
+</div>
+{% elif diff_html %}
+<div class="card">
+    <div class="card-header"><i class="bi bi-file-diff"></i> Unified Diff</div>
+    <div class="card-body p-0">
+        <pre class="diff-view p-3 mb-0"><code>{{ diff_html }}</code></pre>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-secondary">
+    <i class="bi bi-info-circle"></i>
+    No textual content available for one or both backups — nothing to diff.
+</div>
+{% endif %}
+{% endblock %}

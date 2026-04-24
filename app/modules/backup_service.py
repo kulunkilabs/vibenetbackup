@@ -90,6 +90,35 @@ async def run_backup_for_device(
     )
 
 
+def _resolve_destinations(db: Session, destination_ids: list[int] | None) -> list[Destination]:
+    """Enabled Destination rows for the given IDs, or all enabled local
+    destinations as a fallback when nothing was selected."""
+    destinations: list[Destination] = []
+    if destination_ids:
+        destinations = db.query(Destination).filter(
+            Destination.id.in_(destination_ids),
+            Destination.enabled == True,
+        ).all()
+    if not destinations:
+        destinations = db.query(Destination).filter(
+            Destination.dest_type == "local",
+            Destination.enabled == True,
+        ).all()
+    return destinations
+
+
+def _summarize_results(results: list[tuple[str, str]]) -> tuple[str, str | None]:
+    """Pick a comma-joined label and a primary path for a successful multi-dest save.
+    Prefers a local path for `destination_path` so in-app Download/Delete keeps
+    pointing at the local copy."""
+    if not results:
+        return "local", None
+    types = sorted({t for t, _ in results})
+    local_paths = [p for t, p in results if t == "local"]
+    primary = local_paths[0] if local_paths else results[0][1]
+    return ", ".join(types), primary
+
+
 async def _handle_binary_backup(
     db: Session,
     device: Device,
@@ -98,20 +127,59 @@ async def _handle_binary_backup(
     destination_ids: list[int] | None,
     job_run,
 ) -> Backup:
-    """Save a binary (tar.gz/zip) backup to disk and store a JSON manifest in the DB."""
+    """Save a binary (tar.gz/zip) backup to each selected destination and
+    store a JSON manifest in the DB."""
     file_bytes, extension, file_list = binary_result
-
-    # Determine archive type from extension
     archive_type = "tgz" if extension == ".tar.gz" else "zip"
-
     config_hash = hashlib.sha256(file_bytes).hexdigest()
 
-    # Save file to local destination
-    saved_path = await _save_binary_local(device, file_bytes, extension, destination_ids, db)
+    destinations = _resolve_destinations(db, destination_ids)
 
+    results: list[tuple[str, str]] = []
+    save_errors: list[str] = []
+    for dest in destinations:
+        dest_type = dest.dest_type.value
+        try:
+            backend = get_destination(dest_type)
+            path = await backend.save_binary(
+                hostname=device.hostname,
+                data=file_bytes,
+                extension=extension,
+                config=dest.config_json or {},
+            )
+            results.append((dest_type, path))
+            logger.info(
+                "Saved binary backup for %s to %s: %s",
+                device.hostname, dest_type, path,
+            )
+        except NotImplementedError:
+            logger.warning(
+                "Destination '%s' does not support archive backups — skipping for %s",
+                dest_type, device.hostname,
+            )
+        except Exception as e:
+            logger.error(
+                "Failed to save binary backup to %s for %s: %s",
+                dest_type, device.hostname, e,
+            )
+            save_errors.append(f"{dest_type}: {e}")
+
+    if not results:
+        backup.config_hash = config_hash
+        backup.file_size = len(file_bytes)
+        backup.status = BackupStatus.failed
+        backup.error_message = (
+            "Binary backup could not be written to any destination"
+            + (": " + "; ".join(save_errors) if save_errors else "")
+        )
+        db.commit()
+        logger.error("Binary backup for %s failed — no destination accepted the archive", device.hostname)
+        return backup
+
+    dest_label, primary_path = _summarize_results(results)
     manifest = json.dumps({
         "type": archive_type,
-        "path": saved_path,
+        "path": primary_path,
         "files": sorted(file_list),
         "file_count": len(file_list),
     })
@@ -119,79 +187,16 @@ async def _handle_binary_backup(
     backup.config_text = manifest
     backup.config_hash = config_hash
     backup.file_size = len(file_bytes)
-    backup.destination_type = "local"
-    backup.destination_path = saved_path
+    backup.destination_type = dest_label
+    backup.destination_path = primary_path
     backup.status = BackupStatus.success
     db.commit()
 
     logger.info(
-        "Binary backup complete for %s: %d files, %d bytes, hash=%s...",
-        device.hostname, len(file_list), len(file_bytes), config_hash[:12],
+        "Binary backup complete for %s: %d files, %d bytes, hash=%s..., destinations=%s",
+        device.hostname, len(file_list), len(file_bytes), config_hash[:12], dest_label,
     )
     return backup
-
-
-async def _save_binary_local(
-    device: Device,
-    file_bytes: bytes,
-    extension: str,
-    destination_ids: list[int] | None,
-    db: Session,
-) -> str:
-    """Save binary file to the local backup directory, return saved path."""
-    from app.config import get_settings
-    import os
-
-    # Resolve base dir from a configured LOCAL destination only.
-    # Binary (archive) backups are currently local-only; non-local destinations
-    # (SMB, Git) are not supported for binary payloads and are skipped with a warning.
-    base_dir = get_settings().BACKUP_DIR
-    if destination_ids:
-        dests = db.query(Destination).filter(
-            Destination.id.in_(destination_ids),
-            Destination.enabled == True,
-        ).all()
-        local_dest = next((d for d in dests if d.dest_type.value == "local"), None)
-        non_local = [d for d in dests if d.dest_type.value != "local"]
-        if non_local:
-            names = ", ".join(d.dest_type.value for d in non_local)
-            logger.warning(
-                "Binary/archive backups do not yet support non-local destinations (%s) "
-                "for %s — saving locally only.",
-                names, device.hostname,
-            )
-        if local_dest and local_dest.config_json:
-            base_dir = local_dest.config_json.get("path", base_dir)
-
-    safe_hostname = os.path.basename(device.hostname.replace("\\", "/")) or "unknown"
-    device_dir = os.path.join(base_dir, safe_hostname)
-    if not os.path.realpath(device_dir).startswith(os.path.realpath(base_dir)):
-        raise ValueError(f"Invalid hostname for path: {device.hostname}")
-    os.makedirs(device_dir, exist_ok=True)
-
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"{timestamp}{extension}"
-    filepath = os.path.join(device_dir, filename)
-
-    import asyncio
-    await asyncio.to_thread(_write_binary, filepath, file_bytes)
-
-    # Update latest symlink
-    latest = os.path.join(device_dir, f"latest{extension}")
-    if os.path.islink(latest):
-        os.unlink(latest)
-    try:
-        os.symlink(filepath, latest)
-    except OSError:
-        pass
-
-    logger.info("Saved binary backup to %s (%d bytes)", filepath, len(file_bytes))
-    return filepath
-
-
-def _write_binary(path: str, content: bytes) -> None:
-    with open(path, "wb") as f:
-        f.write(content)
 
 
 async def _handle_text_backup(
@@ -201,42 +206,28 @@ async def _handle_text_backup(
     config_text: str,
     destination_ids: list[int] | None,
 ) -> Backup:
-    """Save a text config backup (existing flow)."""
+    """Save a text config backup to each selected destination."""
     config_hash = hashlib.sha256(config_text.encode()).hexdigest()
+    destinations = _resolve_destinations(db, destination_ids)
 
-    destinations = []
-    if destination_ids:
-        destinations = db.query(Destination).filter(
-            Destination.id.in_(destination_ids),
-            Destination.enabled == True,
-        ).all()
-
-    if not destinations:
-        destinations = db.query(Destination).filter(
-            Destination.dest_type == "local",
-            Destination.enabled == True,
-        ).all()
-
-    saved_path = None
-    dest_type = "local"
+    results: list[tuple[str, str]] = []
     save_errors: list[str] = []
-
     for dest in destinations:
+        dest_type = dest.dest_type.value
         try:
-            backend = get_destination(dest.dest_type.value)
-            saved_path = await backend.save(
+            backend = get_destination(dest_type)
+            path = await backend.save(
                 hostname=device.hostname,
                 config_text=config_text,
                 config=dest.config_json or {},
             )
-            dest_type = dest.dest_type.value
-            logger.info("Saved backup for %s to %s: %s", device.hostname, dest_type, saved_path)
+            results.append((dest_type, path))
+            logger.info("Saved backup for %s to %s: %s", device.hostname, dest_type, path)
         except Exception as e:
-            logger.error("Failed to save to %s for %s: %s", dest.dest_type.value, device.hostname, e)
-            save_errors.append(f"{dest.dest_type.value}: {e}")
+            logger.error("Failed to save to %s for %s: %s", dest_type, device.hostname, e)
+            save_errors.append(f"{dest_type}: {e}")
 
-    if destinations and saved_path is None:
-        # Every configured destination failed — do not report success
+    if destinations and not results:
         backup.config_text = config_text
         backup.config_hash = config_hash
         backup.file_size = len(config_text)
@@ -246,24 +237,31 @@ async def _handle_text_backup(
         logger.error("Backup for %s failed — no destination saved successfully", device.hostname)
         return backup
 
-    if not destinations:
+    if not results:
+        # No destinations configured at all — last-resort local save so existing
+        # deployments without any enabled destination still produce a file.
         from app.modules.destinations.local import LocalDestination
         local = LocalDestination()
-        saved_path = await local.save(
+        path = await local.save(
             hostname=device.hostname,
             config_text=config_text,
             config={},
         )
+        results.append(("local", path))
 
+    dest_label, primary_path = _summarize_results(results)
     backup.config_text = config_text
     backup.config_hash = config_hash
     backup.file_size = len(config_text)
-    backup.destination_type = dest_type
-    backup.destination_path = saved_path
+    backup.destination_type = dest_label
+    backup.destination_path = primary_path
     backup.status = BackupStatus.success
     db.commit()
 
-    logger.info("Backup complete for %s: %d bytes, hash=%s...", device.hostname, len(config_text), config_hash[:12])
+    logger.info(
+        "Backup complete for %s: %d bytes, hash=%s..., destinations=%s",
+        device.hostname, len(config_text), config_hash[:12], dest_label,
+    )
     return backup
 
 

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ device.hostname }} — History - VIBENetBackup{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>
+        <i class="bi bi-clock-history"></i>
+        Backup History
+        <small class="fs-6 text-muted">{{ device.hostname }} — {{ backups|length }} backup(s)</small>
+    </h2>
+    <div>
+        <a href="/devices/{{ device.id }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Back to Device
+        </a>
+    </div>
+</div>
+
+<div id="compare-bar" class="alert alert-dark d-none d-flex align-items-center justify-content-between py-2 mb-3">
+    <span>
+        <i class="bi bi-file-diff"></i>
+        <strong id="compare-count">0</strong> selected (pick exactly 2 to compare)
+    </span>
+    <div>
+        <button type="button" id="btn-compare" class="btn btn-sm btn-info" disabled>
+            <i class="bi bi-file-diff"></i> Compare selected
+        </button>
+        <button type="button" id="btn-clear" class="btn btn-sm btn-outline-secondary ms-1">Clear</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th style="width:36px"></th>
+                    <th>ID</th>
+                    <th>Timestamp</th>
+                    <th>Status</th>
+                    <th>Size</th>
+                    <th>Hash</th>
+                    <th>Change</th>
+                    <th>Destination</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in backups %}
+                <tr>
+                    <td>
+                        <input type="checkbox" class="form-check-input compare-check"
+                               value="{{ b.id }}"
+                               {% if not b.config_text or b.status.value != 'success' %}disabled title="Only successful backups with config content can be compared"{% endif %}>
+                    </td>
+                    <td>{{ b.id }}</td>
+                    <td>{{ b.timestamp|localtime }}</td>
+                    <td>
+                        {% if b.status.value == 'success' %}
+                        <span class="badge bg-success">OK</span>
+                        {% elif b.status.value == 'failed' %}
+                        <span class="badge bg-danger" title="{{ b.error_message or '' }}">Fail</span>
+                        {% else %}
+                        <span class="badge bg-warning">{{ b.status.value }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ (b.file_size / 1024)|round(1) if b.file_size else '-' }} KB</td>
+                    <td><code class="small">{{ b.config_hash[:12] if b.config_hash else '-' }}</code></td>
+                    <td>
+                        {% if b.status.value != 'success' or not b.config_hash %}
+                        <span class="text-muted small">-</span>
+                        {% elif b.prev_hash is none %}
+                        <span class="badge bg-primary" title="First successful backup">First</span>
+                        {% elif b.prev_hash == b.config_hash %}
+                        <span class="badge bg-secondary" title="Config hash identical to previous success">Unchanged</span>
+                        {% else %}
+                        <span class="badge bg-info" title="Config differs from previous success">Changed</span>
+                        {% endif %}
+                    </td>
+                    <td>{% with dest_type=b.destination_type %}{% include 'partials/destination_badges.html' %}{% endwith %}</td>
+                    <td>
+                        <a href="/backups/{{ b.id }}" class="btn btn-sm btn-outline-light py-0 px-1" title="View">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        {% if b.config_text %}
+                        <a href="/backups/{{ b.id }}/download" class="btn btn-sm btn-outline-info py-0 px-1" title="Download">
+                            <i class="bi bi-download"></i>
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9" class="text-center text-muted py-4">No backups yet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+(function() {
+    const checks = document.querySelectorAll('.compare-check');
+    const bar = document.getElementById('compare-bar');
+    const count = document.getElementById('compare-count');
+    const btnCompare = document.getElementById('btn-compare');
+    const btnClear = document.getElementById('btn-clear');
+
+    function update() {
+        const selected = document.querySelectorAll('.compare-check:checked');
+        const n = selected.length;
+        count.textContent = n;
+        bar.classList.toggle('d-none', n === 0);
+        btnCompare.disabled = n !== 2;
+        // Limit to 2: if user picks a third, uncheck the oldest selection
+        if (n > 2) {
+            selected[0].checked = false;
+            update();
+        }
+    }
+
+    checks.forEach(cb => cb.addEventListener('change', update));
+
+    btnCompare.addEventListener('click', function() {
+        const ids = Array.from(document.querySelectorAll('.compare-check:checked')).map(cb => cb.value);
+        if (ids.length === 2) {
+            window.location.href = '/backups/compare?a=' + ids[0] + '&b=' + ids[1];
+        }
+    });
+
+    btnClear.addEventListener('click', function() {
+        checks.forEach(cb => { cb.checked = false; });
+        update();
+    });
+})();
+</script>
+{% endblock %}
