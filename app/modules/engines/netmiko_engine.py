@@ -4,6 +4,7 @@ import paramiko
 from netmiko import ConnectHandler, NetmikoTimeoutException, NetmikoAuthenticationException
 
 from app.modules.engines.base import BackupEngine
+from app.modules.engines.ssh_auth import client_connect_kwargs
 from app.models.device import Device, get_config_commands, get_netmiko_device_type
 from app.models.credential import Credential
 
@@ -56,13 +57,12 @@ class NetmikoEngine(BackupEngine):
         jump = paramiko.SSHClient()
         jump.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         jump.connect(
-            device.proxy_host,
-            port=device.proxy_port or 22,
-            username=proxy_cred.username,
-            password=proxy_cred.get_password(),
-            timeout=30,
-            look_for_keys=False,
-            allow_agent=False,
+            **client_connect_kwargs(
+                device.proxy_host,
+                device.proxy_port or 22,
+                proxy_cred,
+                "SSH proxy jump",
+            )
         )
         channel = jump.get_transport().open_channel(
             "direct-tcpip",

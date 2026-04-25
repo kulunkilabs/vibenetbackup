@@ -2,7 +2,7 @@
 
 Network device configuration backup manager with multi-engine support, automated scheduling, and retention policies.
 
-**Version:** 1.6.7 | **License:** MIT
+**Version:** 1.6.8 | **License:** MIT
 
 <p align="center">
   <img src="docs/screenshots/screensh_01.png" alt="VIBENetBackup Dashboard" width="900"/>
@@ -108,6 +108,11 @@ Open `http://<your-server-ip>:5005` — default credentials are shown during ins
 ---
 
 ## Changelog
+
+### v1.6.8 (2026-04-24)
+- **SSH proxy / jump-host now honors key-based auth.** Backups via Netmiko or SCP through a jump host previously failed with `No authentication methods available` whenever the proxy credential used SSH key auth, because the proxy connect path only ever passed `password=...` to paramiko (with `look_for_keys=False`, `allow_agent=False`). The proxy connect now goes through a shared `client_connect_kwargs` helper that sets `key_filename` from `Credential.ssh_key_path` when present, falls back to password, and raises a clear error if neither is set
+- **SCP device-level connect also honors keys.** The SCP engine's direct (non-proxy) connect was password-only too; it now uses the same auth flow, so SCP backups against devices that authenticate with a key work without setting a password. If both are present, paramiko tries the key first and falls back to the password
+- New shared module `app/modules/engines/ssh_auth.py` (`client_connect_kwargs`, `connect_transport`, `load_private_key`, `require_ssh_auth`) plus 6 unit tests covering all auth-combo edge cases
 
 ### v1.6.7 (2026-04-23)
 - **`SECRET_KEY` self-test at startup** — `init_db()` now probe-decrypts one credential + one notification channel. If the current `SECRET_KEY` can't decrypt existing ciphertext (data volume wiped, `.env` regenerated, migration without copying the key, etc.), a clear WARNING is logged with recovery steps instead of silent empty-error backup failures at runtime

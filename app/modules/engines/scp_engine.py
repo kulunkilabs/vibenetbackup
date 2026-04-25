@@ -4,6 +4,7 @@ import tempfile
 import paramiko
 
 from app.modules.engines.base import BackupEngine
+from app.modules.engines.ssh_auth import client_connect_kwargs, connect_transport
 from app.models.device import Device
 from app.models.credential import Credential
 
@@ -26,13 +27,12 @@ class SCPEngine(BackupEngine):
         jump = paramiko.SSHClient()
         jump.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         jump.connect(
-            device.proxy_host,
-            port=device.proxy_port or 22,
-            username=proxy_cred.username,
-            password=proxy_cred.get_password(),
-            timeout=30,
-            look_for_keys=False,
-            allow_agent=False,
+            **client_connect_kwargs(
+                device.proxy_host,
+                device.proxy_port or 22,
+                proxy_cred,
+                "SSH proxy jump",
+            )
         )
         channel = jump.get_transport().open_channel(
             "direct-tcpip",
@@ -45,8 +45,6 @@ class SCPEngine(BackupEngine):
         """Create a Paramiko Transport, routing through a proxy jump host if configured."""
         if not credential.username:
             raise ValueError(f"Credential '{credential.name}' has no username — SSH/SCP requires a username")
-        username = credential.username
-        password = credential.get_password()
         jump = None
 
         if device.proxy_host:
@@ -65,7 +63,7 @@ class SCPEngine(BackupEngine):
         except Exception:
             pass
 
-        transport.connect(username=username, password=password)
+        connect_transport(transport, credential, "SSH/SCP")
         return jump, transport
 
     def _scp_fetch(self, device: Device, credential: Credential) -> str:
